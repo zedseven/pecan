@@ -3,6 +3,13 @@ use std::process::Command;
 
 /// Builds the static site before starting up.
 fn main() {
+	// Exit immediately if the `no-build` feature is passed. This is because for
+	// some reason, Clippy tries to run the build script on Windows. On Linux, it
+	// works fine.
+	if cfg!(feature = "no-build") {
+		return;
+	}
+
 	// Tell Cargo to rebuild Svelte if anything changed in its source directory
 	println!("cargo:rerun-if-changed=web/src");
 
