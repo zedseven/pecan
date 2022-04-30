@@ -5,7 +5,10 @@ use rocket::Rocket;
 use rocket_contrib::database;
 
 // Modules
+pub mod functions;
 pub mod models;
+
+#[rustfmt::skip]
 pub mod schema {
 	include!("schema.rs");
 }

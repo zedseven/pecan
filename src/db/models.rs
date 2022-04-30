@@ -3,27 +3,37 @@ use std::borrow::Cow;
 
 use chrono::NaiveDateTime;
 
-use super::schema::{column_definitions, device_data, device_key_info, locations};
+use super::schema::*;
 
 // Models
 
-#[derive(Identifiable, Queryable, Insertable, Serialize, Deserialize)]
+#[derive(Identifiable, Queryable, Serialize, Deserialize)]
 #[diesel(table_name = column_definitions)]
 #[serde(rename_all = "camelCase")]
 pub struct ColumnDefinition<'a> {
 	pub id: i32,
 	pub name: Cow<'a, str>,
 }
+#[derive(Insertable)]
+#[diesel(table_name = column_definitions)]
+pub struct ColumnDefinitionNew<'a> {
+	pub name: Cow<'a, str>,
+}
 
-#[derive(Identifiable, Queryable, Insertable, Serialize, Deserialize)]
+#[derive(Identifiable, Queryable, Serialize, Deserialize)]
 #[diesel(table_name = locations)]
 #[serde(rename_all = "camelCase")]
 pub struct LocationDefinition<'a> {
 	pub id: i32,
 	pub location: Cow<'a, str>,
 }
+#[derive(Insertable)]
+#[diesel(table_name = locations)]
+pub struct LocationDefinitionNew<'a> {
+	pub location: Cow<'a, str>,
+}
 
-#[derive(Identifiable, Queryable, Insertable, Serialize, Deserialize)]
+#[derive(Identifiable, Queryable, Serialize, Deserialize)]
 #[diesel(table_name = device_key_info)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceKeyInfo<'a> {
@@ -32,12 +42,26 @@ pub struct DeviceKeyInfo<'a> {
 	pub location_id: i32,
 	pub last_updated: NaiveDateTime,
 }
+#[derive(Insertable)]
+#[diesel(table_name = device_key_info)]
+pub struct DeviceKeyInfoNew<'a> {
+	pub device_id: Cow<'a, str>,
+	pub location_id: i32,
+	pub last_updated: NaiveDateTime,
+}
 
-#[derive(Associations, Identifiable, Queryable, Insertable, Serialize, Deserialize)]
+#[derive(Associations, Identifiable, Queryable, Serialize, Deserialize)]
 #[diesel(table_name = device_data, belongs_to(DeviceInfo<'_>, foreign_key = device_key_info_id))]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceData<'a> {
 	pub id: i32,
+	pub device_key_info_id: i32,
+	pub column_definition_id: i32,
+	pub data_value: Option<Cow<'a, str>>,
+}
+#[derive(Insertable)]
+#[diesel(table_name = device_data)]
+pub struct DeviceDataNew<'a> {
 	pub device_key_info_id: i32,
 	pub column_definition_id: i32,
 	pub data_value: Option<Cow<'a, str>>,

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Err, Ok } from '/src/util';
 
-	const url = '/api/recent/10';
+	const url = '/devices/recent/10';
 	let resultData = fetch(url, { method: 'get' }).then(async (response) => {
 		if (!response.ok) {
 			return Err({
@@ -29,7 +29,7 @@
 			</tr>
 			{#each data.value.deviceResults as deviceResult}
 				<tr>
-					<td>{deviceResult[0].deviceId}</td>
+					<td style="font-family: monospace, monospace;">{deviceResult[0].deviceId}</td>
 					<td>{deviceResult[0].location}</td>
 					<td>{deviceResult[0].lastUpdated}</td>
 					{#each deviceResult[1] as columnValue}
