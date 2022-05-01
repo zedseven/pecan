@@ -14,7 +14,11 @@ fn main() {
 	}
 
 	// Tell Cargo to rebuild Svelte if anything changed in its source directory
-	println!("cargo:rerun-if-changed=web/src");
+	println!(concat!(
+		"cargo:rerun-if-changed=",
+		env!("CARGO_MANIFEST_DIR"),
+		"/web"
+	));
 
 	// Set the build mode for Svelte based on the Rust build mode
 	let build_mode = if cfg!(debug_assertions) {
