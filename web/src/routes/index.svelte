@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Err, Ok } from '/src/util';
 
-	const url = '/devices/recent/10';
+	const url = '/api/devices/recent/10';
 	let resultData = fetch(url, { method: 'get' }).then(async (response) => {
 		if (!response.ok) {
 			return Err({

@@ -27,13 +27,66 @@ use crate::{
 };
 
 /// The route for this section.
-pub(super) struct DevicesPath;
-impl Routable for DevicesPath {
+pub(super) struct DevicesApi;
+impl Routable for DevicesApi {
 	const PATH: &'static str = "/devices";
-	const ROUTES: &'static dyn Fn() -> Vec<Route> =
-		&|| routes![get_recent_entries, create_new_device];
+	const ROUTES: &'static dyn Fn() -> Vec<Route> = &|| {
+		routes![
+			get_columns,
+			get_recent_entries,
+			get_device,
+			create_new_device
+		]
+	};
 }
 
+// Type Definitions
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SubmittedDeviceInfo {
+	location_id: i32,
+	column_data: Vec<SubmittedColumnData>,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SubmittedColumnData {
+	column_definition_id: i32,
+	data_value: String,
+}
+
+// TODO: Bad return value
+/// Fetches the column definitions.
+#[get("/columns")]
+pub fn get_columns(mut conn: DbConn) -> Result<JsonValue, BadRequest<&'static str>> {
+	use schema::column_definitions::dsl::*;
+
+	let column_definition_results = column_definitions
+		.load::<ColumnDefinition>(&mut conn.0)
+		.expect("unable to load the column definitions");
+
+	Ok(json!(column_definition_results))
+}
+
+/// Fetches a device by ID.
+#[get("/<device>")]
+pub fn get_device(mut conn: DbConn, device: String) -> Result<JsonValue, BadRequest<&'static str>> {
+	use schema::{device_key_info::dsl::*, locations::dsl::*};
+
+	let device_key_info_results = device_key_info
+		.filter(schema::device_key_info::dsl::device_id.eq(device.as_str()))
+		.inner_join(locations)
+		.select(DEVICE_INFO)
+		.get_result::<DeviceInfo>(&mut conn.0)
+		.expect("unable to load device info");
+
+	let device_data_results = DeviceData::belonging_to(&device_key_info_results)
+		.get_results::<DeviceData>(&mut conn.0)
+		.expect("unable to load the device data");
+
+	Ok(json!((device_key_info_results, device_data_results)))
+}
+
+/// Fetches the most recently-updated `count` entries.
 #[get("/recent/<count>")]
 pub fn get_recent_entries(
 	mut conn: DbConn,
@@ -70,20 +123,7 @@ pub fn get_recent_entries(
 	Ok(json!({ "columnDefinitions": column_definition_results, "deviceResults": device_results }))
 }
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SubmittedDeviceInfo {
-	location_id: i32,
-	column_data: Vec<SubmittedColumnData>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SubmittedColumnData {
-	column_definition_id: i32,
-	data_value: String,
-}
-
+/// Adds a new device to the database.
 #[post("/add", data = "<device_info>")]
 pub fn create_new_device(
 	mut conn: DbConn,
