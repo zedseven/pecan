@@ -18,8 +18,8 @@ const SVELTE_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/web/build");
 /// Sets up the Rocket server.
 pub fn rocket() -> Rocket {
 	ignite()
-		.attach(AdHoc::on_attach("Database Setup", init_db))
 		.attach(DbConn::fairing())
+		.attach(AdHoc::on_attach("Database Setup", init_db))
 		.mount(
 			format!("{}{}", API_ROOT, DevicesApi::PATH).as_str(),
 			DevicesApi::ROUTES(),

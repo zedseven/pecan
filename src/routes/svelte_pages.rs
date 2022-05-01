@@ -32,5 +32,5 @@ pub fn edit_page() -> Option<NamedFile> {
 /// Svelte handles the actual parameter, so we need not worry about it here.
 #[get("/edit/<_device>")]
 pub fn edit_page_with_param(_device: String) -> Option<NamedFile> {
-	NamedFile::open(format!("{}/edit.html", SVELTE_PATH)).ok()
+	edit_page()
 }
