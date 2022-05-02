@@ -5,6 +5,7 @@
 	import couldntConnect from './couldntConnect.svelte';
 	import { fetchDefinitions } from '../stores';
 	import { handleNetworkResponse, Ok, postData } from '../util';
+	import locationSelector from './locationSelector.svelte';
 
 	// Component Data
 	export let deviceId = null;
@@ -16,7 +17,7 @@
 
 	// Fetch the necessary information from the server
 	const deviceUrl = '/api/devices/get/';
-	let resultData = fetchDefinitions().then(async (definitionsResult) => {
+	let loadingPromise = fetchDefinitions().then(async (definitionsResult) => {
 		// If there was an error, return it for processing below
 		if (!definitionsResult.ok) return definitionsResult;
 
@@ -86,10 +87,10 @@
 	};
 </script>
 
-{#await resultData}
+{#await loadingPromise}
 	<svelte:component this={loading} />
-{:then data}
-	{#if data.ok}
+{:then loadingResult}
+	{#if loadingResult.ok}
 		<form on:submit|preventDefault={onSubmit} method="post">
 			<table>
 				<tr>
@@ -106,11 +107,12 @@
 						<td class="monospace">{deviceId}</td>
 					{/if}
 					<td>
-						<select id="location" bind:value={deviceData.locationId} required="required">
-							{#each definitions.locations as location}
-								<option value={location.id}>{location.name}</option>
-							{/each}
-						</select>
+						<svelte:component
+							this={locationSelector}
+							bind:value={deviceData.locationId}
+							id="location"
+							required={true}
+						/>
 					</td>
 					{#each definitions.columnDefinitions as columnDefinition}
 						<td>
@@ -131,7 +133,7 @@
 			{/if}
 		</form>
 	{:else}
-		<svelte:component this={responseError} error={data.error} />
+		<svelte:component this={responseError} error={loadingResult.error} />
 	{/if}
 {:catch}
 	<svelte:component this={couldntConnect} />

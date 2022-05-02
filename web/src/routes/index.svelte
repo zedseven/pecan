@@ -1,28 +1,37 @@
 <script lang="ts">
+	// Imports
+	import navBar from '../components/navBar.svelte';
 	import loading from '../components/loading.svelte';
 	import responseError from '../components/responseError.svelte';
 	import couldntConnect from '../components/couldntConnect.svelte';
 	import { handleNetworkResponse } from '../util';
 
+	// Load the devices
 	const url = '/api/devices/recent/10';
-	let resultData = fetch(url, { method: 'get' }).then(handleNetworkResponse);
+	let loadingPromise = fetch(url, { method: 'get' }).then(handleNetworkResponse);
 </script>
 
-{#await resultData}
+<svelte:head>
+	<title>Devices</title>
+</svelte:head>
+
+<svelte:component this={navBar} />
+
+{#await loadingPromise}
 	<svelte:component this={loading} />
-{:then data}
-	{#if data.ok}
+{:then loadingResult}
+	{#if loadingResult.ok}
 		<table>
-			<tr>
+			<tr class="headerRow">
 				<th>Device ID</th>
 				<th>Location</th>
 				<th>Last Updated</th>
-				{#each data.value.columnDefinitions as columnDefinition}
+				{#each loadingResult.value.columnDefinitions as columnDefinition}
 					<th>{columnDefinition.name}</th>
 				{/each}
 				<th />
 			</tr>
-			{#each data.value.deviceResults as deviceResult}
+			{#each loadingResult.value.deviceResults as deviceResult}
 				<tr>
 					<td class="monospace">{deviceResult[0].deviceId}</td>
 					<td>{deviceResult[0].location}</td>
@@ -35,8 +44,14 @@
 			{/each}
 		</table>
 	{:else}
-		<svelte:component this={responseError} error={data.error} />
+		<svelte:component this={responseError} error={loadingResult.error} />
 	{/if}
 {:catch}
 	<svelte:component this={couldntConnect} />
 {/await}
+
+<style>
+	tr:not(.headerRow):hover {
+		background-color: #dddddd;
+	}
+</style>
