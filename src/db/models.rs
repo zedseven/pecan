@@ -25,12 +25,12 @@ pub struct ColumnDefinitionNew<'a> {
 #[serde(rename_all = "camelCase")]
 pub struct LocationDefinition<'a> {
 	pub id: i32,
-	pub location: Cow<'a, str>,
+	pub name: Cow<'a, str>,
 }
 #[derive(Insertable)]
 #[diesel(table_name = locations)]
 pub struct LocationDefinitionNew<'a> {
-	pub location: Cow<'a, str>,
+	pub name: Cow<'a, str>,
 }
 
 #[derive(Identifiable, Queryable, Serialize, Deserialize)]
@@ -57,14 +57,14 @@ pub struct DeviceData<'a> {
 	pub id: i32,
 	pub device_key_info_id: i32,
 	pub column_definition_id: i32,
-	pub data_value: Option<Cow<'a, str>>,
+	pub data_value: Cow<'a, str>,
 }
 #[derive(Insertable)]
 #[diesel(table_name = device_data)]
 pub struct DeviceDataNew<'a> {
 	pub device_key_info_id: i32,
 	pub column_definition_id: i32,
-	pub data_value: Option<Cow<'a, str>>,
+	pub data_value: Cow<'a, str>,
 }
 
 // Select Definitions
@@ -80,7 +80,8 @@ select_def! {
 	DEVICE_INFO: DeviceInfoSelect = (
 		device_key_info::id,
 		device_key_info::device_id,
-		locations::location,
+		locations::id,
+		locations::name,
 		device_key_info::last_updated
 	)
 }
@@ -90,6 +91,7 @@ select_def! {
 pub struct DeviceInfo<'a> {
 	pub id: i32,
 	pub device_id: Cow<'a, str>,
+	pub location_id: i32,
 	pub location: Cow<'a, str>,
 	pub last_updated: NaiveDateTime,
 }

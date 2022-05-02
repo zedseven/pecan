@@ -5,7 +5,7 @@ CREATE TABLE 'column_definitions' (
 
 CREATE TABLE 'locations' (
 	'id' INTEGER PRIMARY KEY NOT NULL,
-	'location' TEXT NOT NULL
+	'name' TEXT NOT NULL
 );
 
 CREATE TABLE 'device_key_info' (
@@ -20,7 +20,7 @@ CREATE TABLE 'device_data' (
 	'id' INTEGER PRIMARY KEY NOT NULL,
 	'device_key_info_id' INTEGER NOT NULL,
 	'column_definition_id' INTEGER NOT NULL,
-	'data_value' TEXT,
+	'data_value' TEXT NOT NULL,
 	FOREIGN KEY ('device_key_info_id') REFERENCES 'device_key_info'('id'),
 	FOREIGN KEY ('column_definition_id') REFERENCES 'column_definitions'('id')
 );

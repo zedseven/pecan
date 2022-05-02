@@ -12,3 +12,33 @@ export const Ok = <T>(data: T): Result<T, never> => {
 export const Err = <E>(error?: E): Result<never, E> => {
 	return { ok: false, error };
 };
+
+// An HTTP response error, including the status code, status description, and error message.
+export type ResponseError = {
+	status: number;
+	statusText: string;
+	message: string;
+};
+
+// Takes a `fetch` response and maps it to a `Result` with the parsed JSON body on success, or an
+// error with the pertinent information on failure.
+export const handleNetworkResponse = async (response: Response) => {
+	if (!response.ok) {
+		return Err({
+			status: response.status,
+			statusText: response.statusText,
+			message: await response.text(),
+		});
+	}
+	return Ok(await response.json());
+};
+
+export const postData = async (input: RequestInfo, data: any) => {
+	return fetch(input, {
+		method: 'post',
+		headers: {
+			'Content-Type': 'application/json;charset=utf-8',
+		},
+		body: JSON.stringify(data),
+	});
+};

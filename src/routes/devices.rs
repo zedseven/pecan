@@ -7,6 +7,7 @@ use diesel::{
 	dsl::exists,
 	insert_into,
 	select,
+	update,
 	BelongingToDsl,
 	Connection,
 	ExpressionMethods,
@@ -32,10 +33,11 @@ impl Routable for DevicesApi {
 	const PATH: &'static str = "/devices";
 	const ROUTES: &'static dyn Fn() -> Vec<Route> = &|| {
 		routes![
-			get_columns,
+			get_definitions,
 			get_recent_entries,
 			get_device,
-			create_new_device
+			create_device,
+			update_device
 		]
 	};
 }
@@ -55,25 +57,29 @@ pub struct SubmittedColumnData {
 }
 
 // TODO: Bad return value
-/// Fetches the column definitions.
-#[get("/columns")]
-pub fn get_columns(mut conn: DbConn) -> Result<JsonValue, BadRequest<&'static str>> {
-	use schema::column_definitions::dsl::*;
+/// Fetches the column definitions and locations.
+#[get("/definitions")]
+pub fn get_definitions(mut conn: DbConn) -> Result<JsonValue, BadRequest<&'static str>> {
+	use schema::{column_definitions::dsl::*, locations::dsl::*};
 
 	let column_definition_results = column_definitions
 		.load::<ColumnDefinition>(&mut conn.0)
 		.expect("unable to load the column definitions");
 
-	Ok(json!(column_definition_results))
+	let location_results = locations
+		.load::<LocationDefinition>(&mut conn.0)
+		.expect("unable to load the column definitions");
+
+	Ok(json!({ "columnDefinitions": column_definition_results, "locations": location_results }))
 }
 
 /// Fetches a device by ID.
-#[get("/<device>")]
+#[get("/get/<device>")]
 pub fn get_device(mut conn: DbConn, device: String) -> Result<JsonValue, BadRequest<&'static str>> {
 	use schema::{device_key_info::dsl::*, locations::dsl::*};
 
 	let device_key_info_results = device_key_info
-		.filter(schema::device_key_info::dsl::device_id.eq(device.as_str()))
+		.filter(device_id.eq(device.as_str()))
 		.inner_join(locations)
 		.select(DEVICE_INFO)
 		.get_result::<DeviceInfo>(&mut conn.0)
@@ -83,7 +89,9 @@ pub fn get_device(mut conn: DbConn, device: String) -> Result<JsonValue, BadRequ
 		.get_results::<DeviceData>(&mut conn.0)
 		.expect("unable to load the device data");
 
-	Ok(json!((device_key_info_results, device_data_results)))
+	Ok(json!({
+		"deviceResults": (device_key_info_results, device_data_results)
+	}))
 }
 
 /// Fetches the most recently-updated `count` entries.
@@ -124,8 +132,8 @@ pub fn get_recent_entries(
 }
 
 /// Adds a new device to the database.
-#[post("/add", data = "<device_info>")]
-pub fn create_new_device(
+#[post("/create", data = "<device_info>")]
+pub fn create_device(
 	mut conn: DbConn,
 	device_info: Json<SubmittedDeviceInfo>,
 ) -> Result<String, BadRequest<&'static str>> {
@@ -180,7 +188,7 @@ pub fn create_new_device(
 						.map(|data| DeviceDataNew {
 							device_key_info_id: new_device_key_info_id,
 							column_definition_id: data.column_definition_id,
-							data_value: Some(Cow::from(data.data_value.as_str())),
+							data_value: Cow::from(data.data_value.as_str()),
 						})
 						.collect::<Vec<_>>(),
 				)
@@ -192,4 +200,61 @@ pub fn create_new_device(
 		.expect("unable to create the new device entry");
 
 	Ok(new_device_id)
+}
+
+/// Updates a device's data.
+#[post("/update/<device>", data = "<device_info>")]
+pub fn update_device(
+	mut conn: DbConn,
+	device: String,
+	device_info: Json<SubmittedDeviceInfo>,
+) -> Result<String, BadRequest<&'static str>> {
+	use schema::{device_data::dsl::*, device_key_info::dsl::*, locations::dsl::*};
+
+	// Verify the new location
+	if !select(exists(
+		locations.filter(schema::locations::dsl::id.eq(device_info.location_id)),
+	))
+	.get_result::<bool>(&mut conn.0)
+	.expect("unable to query the database for location existence")
+	{
+		return Err(BadRequest(Some("Invalid location.")));
+	}
+
+	// Fetch the device's internal ID
+	let internal_id = device_key_info
+		.filter(device_id.eq(device.as_str()))
+		.select(schema::device_key_info::dsl::id)
+		.get_result::<i32>(&mut conn.0)
+		.expect("unable to get the internal ID associated with the provided device ID");
+
+	// Begin the transaction
+	conn.0
+		.transaction::<_, Error, _>(|conn| {
+			// Update the device entry
+			update(device_key_info.filter(schema::device_key_info::dsl::id.eq(internal_id)))
+				.set((
+					location_id.eq(device_info.location_id),
+					last_updated.eq(Utc::now().naive_utc()),
+				))
+				.execute(conn)
+				.with_context(|| "unable to update device_key_info")?;
+
+			// Update the device column data
+			for column in &device_info.column_data {
+				update(
+					device_data
+						.filter(device_key_info_id.eq(internal_id))
+						.filter(column_definition_id.eq(column.column_definition_id)),
+				)
+				.set(data_value.eq(column.data_value.as_str()))
+				.execute(conn)
+				.with_context(|| "unable to update device_data")?;
+			}
+
+			Ok(())
+		})
+		.expect("unable to update the device entry");
+
+	Ok(device)
 }
