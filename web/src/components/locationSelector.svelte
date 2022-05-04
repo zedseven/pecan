@@ -6,6 +6,8 @@
 	export let value = null;
 	export let id = null;
 	export let required = false;
+	export let emptyValueLabel = '-- Location --';
+	export let disableEmptyValue = true;
 	let definitions;
 
 	// Load the definitions
@@ -22,8 +24,8 @@
 
 {#await loadingPromise then loadingResult}
 	{#if loadingResult.ok}
-		<select bind:value {id} {required}>
-			<option disabled="disabled">-- Location --</option>
+		<select {id} {required} bind:value>
+			<option value={null} disabled={disableEmptyValue}>{emptyValueLabel}</option>
 			{#each definitions.locations as location}
 				<option value={location.id}>{location.name}</option>
 			{/each}

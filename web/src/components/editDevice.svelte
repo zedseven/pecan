@@ -4,7 +4,7 @@
 	import responseError from './responseError.svelte';
 	import couldntConnect from './couldntConnect.svelte';
 	import { fetchDefinitions } from '../stores';
-	import { handleNetworkResponse, Ok, postData } from '../util';
+	import { handleNetworkResponse, Ok, postData, sanitiseObjectMapToArray } from '../util';
 	import locationSelector from './locationSelector.svelte';
 
 	// Component Data
@@ -12,7 +12,7 @@
 	let definitions;
 	let deviceData = {
 		locationId: null,
-		columnData: [],
+		columnData: {},
 	};
 
 	// Fetch the necessary information from the server
@@ -56,21 +56,18 @@
 	// Submit the data
 	const onSubmit = async (event) => {
 		event.preventDefault();
-		console.log(deviceData);
-		let inputData = Object.assign({}, deviceData);
+		let inputData = {
+			locationId: null,
+			columnData: [],
+		};
 
 		// Validate and sanitise the input data
-		if (!inputData.locationId) {
+		if (!deviceData.locationId) {
 			alert('You must select the current location of the device.');
 			return;
 		}
-		for (let index = 0; index < inputData.columnData.length; index++) {
-			if (!inputData.columnData[index]) {
-				inputData.columnData.splice(index, 1);
-			}
-			if (!inputData.columnData[index].dataValue) inputData.columnData[index].dataValue = '';
-			else inputData.columnData[index].dataValue = inputData.columnData[index].dataValue.trim();
-		}
+		inputData.locationId = deviceData.locationId;
+		inputData.columnData = sanitiseObjectMapToArray(deviceData.columnData);
 
 		// Push it to the server
 		const addDeviceUrl = '/api/devices/create';

@@ -23,5 +23,6 @@
 # Testing migrations
 /migrations/*_test*/
 
-# Local To-Do file
+# Local working files
 TODO.md
+SCRATCHPAD.md

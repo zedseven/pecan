@@ -6,27 +6,33 @@
 </script>
 
 <header id="navBar">
-	<div id="left">
+	<div id="primary">
 		<a href="/"><h1 id="title">{appName}</h1></a>
 	</div>
-	<div id="right">
-		<svelte:component this={locationSelector} bind:value={$selectedLocation} />
+	<div id="secondary">
+		<label for="locationSelector">Your Location: </label>
+		<svelte:component
+			this={locationSelector}
+			bind:value={$selectedLocation}
+			id="locationSelector"
+			emptyValueLabel="-- Your Location --"
+		/>
 	</div>
 </header>
 
 <style>
 	#navBar {
 		padding: 10px;
+		color: #ffffff;
 		background-color: #222222;
 	}
-	#left {
+	#primary {
 		display: inline-block;
 		width: 20%;
 		vertical-align: middle;
 	}
-	#right {
+	#secondary {
 		display: inline-block;
-		width: 79%;
 		vertical-align: middle;
 	}
 	#title {

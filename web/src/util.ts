@@ -42,3 +42,29 @@ export const postData = async (input: RequestInfo, data: any) => {
 		body: JSON.stringify(data),
 	});
 };
+
+// Convert from an Object to an Array, and run a closure on each entry.
+export const objectMapToArray = (
+	objectMap: Record<string, Record<string, unknown>>,
+	entryClosure: (entry: Record<string, unknown>) => void,
+) => {
+	const outputArray = [];
+	for (const entryId in objectMap) {
+		const entry = Object.assign({}, objectMap[entryId]);
+
+		entryClosure(entry);
+
+		outputArray.push(entry);
+	}
+	return outputArray;
+};
+
+export const sanitiseObjectMapToArray = (objectMap: Record<string, Record<string, unknown>>) => {
+	return objectMapToArray(objectMap, (entry) => {
+		if (!entry.dataValue) entry.dataValue = '';
+		else {
+			// @ts-ignore
+			entry.dataValue = entry.dataValue.trim();
+		}
+	});
+};
