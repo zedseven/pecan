@@ -8,19 +8,10 @@ use rand::{
 use crate::db::{schema, DbConn};
 
 /// Generates a new device ID, and ensures it's not already in use.
-///
-/// This is based on the [Microsoft Alphabet] - the set of characters they use
-/// to generate product keys, designed to minimise ambiguity and prevent words
-/// from being spelled by chance.
-///
-/// [Microsoft Alphabet]: https://www.techtalkz.com/threads/alphabet-letters-not-used-in-microsoft-product-keys.82675/#post-349424
 pub fn gen_new_id(conn: &mut DbConn) -> String {
 	const PREFIX: &str = "T-"; // TODO: Make this configurable
-	const LENGTH: usize = 8;
-	const CHAR_SET: &[char] = &[
-		'2', '3', '4', '6', '7', '9', 'C', 'D', 'F', 'G', 'H', 'J', 'K', 'M', 'P', 'Q', 'R', 'T',
-		'V', 'W', 'X', 'Y',
-	];
+	const LENGTH: usize = 6;
+	const CHAR_SET: &[char] = &['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
 	let uniform = Uniform::from(0..CHAR_SET.len());
 	let mut rng = thread_rng();
