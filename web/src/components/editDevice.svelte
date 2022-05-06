@@ -3,7 +3,7 @@
 	import loading from './loading.svelte';
 	import responseError from './responseError.svelte';
 	import couldntConnect from './couldntConnect.svelte';
-	import { fetchDefinitions } from '../stores';
+	import { fetchDefinitions, selectedLocation } from '../stores';
 	import { handleNetworkResponse, Ok, postData, sanitiseObjectMapToArray } from '../util';
 	import locationSelector from './locationSelector.svelte';
 
@@ -11,7 +11,7 @@
 	export let deviceId = null;
 	let definitions;
 	let deviceData = {
-		locationId: null,
+		locationId: $selectedLocation, // Default to the selected location for ergonomics
 		columnData: {},
 	};
 
