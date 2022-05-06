@@ -29,6 +29,10 @@
 				deviceId,
 				locationId: $selectedLocation,
 			};
+			if (inputData.locationId == null) {
+				clickState = ClickState.NotClicked;
+				return;
+			}
 
 			const checkoutUrl = '/api/devices/checkout';
 			postData(checkoutUrl, inputData)
@@ -56,12 +60,14 @@
 	};
 </script>
 
-{#if currentLocationId === $selectedLocation}
-	<button disabled="disabled">Checked Out</button>
+{#if $selectedLocation === null}
+	<button disabled="disabled">Select your location</button>
+{:else if $selectedLocation === currentLocationId}
+	<button disabled="disabled">Already assigned</button>
 {:else if clickState === ClickState.Loading}
 	<button class="loading">Loading...</button>
 {:else if clickState === ClickState.Primed}
 	<button on:click={clicked} class="primed">Are you sure?</button>
 {:else}
-	<button on:click={clicked}>Checkout</button>
+	<button on:click={clicked}>Assign to me</button>
 {/if}
