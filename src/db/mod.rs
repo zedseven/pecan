@@ -7,6 +7,7 @@ use rocket_contrib::database;
 // Modules
 pub mod functions;
 pub mod models;
+pub mod util;
 
 #[rustfmt::skip]
 pub mod schema {

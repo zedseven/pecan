@@ -1,11 +1,11 @@
 // Uses
 use std::borrow::Cow;
 
-use anyhow::{anyhow, Context, Error};
 use chrono::Utc;
 use diesel::{
 	dsl::exists,
 	insert_into,
+	result::OptionalExtension,
 	select,
 	sql_query,
 	sql_types::{Integer, Nullable, Text},
@@ -16,9 +16,8 @@ use diesel::{
 	GroupedBy,
 	QueryDsl,
 	RunQueryDsl,
-	TextExpressionMethods,
 };
-use rocket::{get, post, response::status::BadRequest, routes, Route};
+use rocket::{get, post, routes, Route};
 use rocket_contrib::{
 	json,
 	json::{Json, JsonValue},
@@ -27,6 +26,7 @@ use rocket_contrib::{
 use super::Routable;
 use crate::{
 	db::{functions::last_insert_rowid, models::*, schema, DbConn},
+	error::{Context, Error},
 	util::gen_new_id,
 };
 
@@ -77,36 +77,44 @@ pub struct CheckoutInfo {
 // TODO: Bad return value
 /// Fetches the column definitions and locations.
 #[get("/definitions")]
-pub fn get_definitions(mut conn: DbConn) -> Result<JsonValue, BadRequest<&'static str>> {
+pub fn get_definitions(mut conn: DbConn) -> Result<JsonValue, Error> {
 	use schema::{column_definitions::dsl::*, locations::dsl::*};
 
 	let column_definition_results = column_definitions
 		.load::<ColumnDefinition>(&mut conn.0)
-		.expect("unable to load the column definitions");
+		.with_context("unable to load the column definitions")?;
 
 	let location_results = locations
 		.load::<LocationDefinition>(&mut conn.0)
-		.expect("unable to load the column definitions");
+		.with_context("unable to load the column definitions")?;
 
 	Ok(json!({ "columnDefinitions": column_definition_results, "locations": location_results }))
 }
 
 /// Fetches a device by ID.
 #[get("/get/<device>")]
-pub fn get_device(mut conn: DbConn, device: String) -> Result<JsonValue, BadRequest<&'static str>> {
+pub fn get_device(mut conn: DbConn, device: String) -> Result<JsonValue, Error> {
+	// Uses
 	use schema::{device_key_info::dsl::*, locations::dsl::*};
 
+	// Load from the database
 	let device_key_info_results = device_key_info
 		.filter(device_id.eq(device.as_str()))
 		.inner_join(locations)
 		.select(DEVICE_INFO)
 		.get_result::<DeviceInfo>(&mut conn.0)
-		.expect("unable to load device info");
+		.optional()
+		.with_context("unable to load device info")?;
+	if device_key_info_results.is_none() {
+		return Err(Error::UserNotFound("Invalid device ID."));
+	}
+	let device_key_info_results = device_key_info_results.unwrap();
 
 	let device_data_results = DeviceData::belonging_to(&device_key_info_results)
 		.get_results::<DeviceData>(&mut conn.0)
-		.expect("unable to load the device data");
+		.with_context("unable to load the device data")?;
 
+	// Return the results
 	Ok(json!({
 		"deviceResults": (device_key_info_results, device_data_results)
 	}))
@@ -114,19 +122,18 @@ pub fn get_device(mut conn: DbConn, device: String) -> Result<JsonValue, BadRequ
 
 /// Fetches the most recently-updated `count` entries.
 #[get("/recent/<count>")]
-pub fn get_recent_entries(
-	mut conn: DbConn,
-	count: u32,
-) -> Result<JsonValue, BadRequest<&'static str>> {
+pub fn get_recent_entries(mut conn: DbConn, count: u32) -> Result<JsonValue, Error> {
+	// Uses
 	use schema::{column_definitions::dsl::*, device_key_info::dsl::*, locations::dsl::*};
 
 	if count > 100 {
-		return Err(BadRequest(Some("The count is too high.")));
+		return Err(Error::UserNotFound("The count is too high."));
 	}
 
+	// Load from the database
 	let column_definition_results = column_definitions
 		.load::<ColumnDefinition>(&mut conn.0)
-		.expect("unable to load the column definitions");
+		.with_context("unable to load the column definitions")?;
 
 	let device_key_info_results = device_key_info
 		.order(last_updated.desc())
@@ -134,11 +141,11 @@ pub fn get_recent_entries(
 		.inner_join(locations)
 		.select(DEVICE_INFO)
 		.load::<DeviceInfo>(&mut conn.0)
-		.expect("unable to load device info");
+		.with_context("unable to load device info")?;
 
 	let device_data_results = DeviceData::belonging_to(&device_key_info_results)
 		.load::<DeviceData>(&mut conn.0)
-		.expect("unable to load the device data")
+		.with_context("unable to load the device data")?
 		.grouped_by(&device_key_info_results);
 
 	let device_results = device_key_info_results
@@ -146,6 +153,7 @@ pub fn get_recent_entries(
 		.zip(device_data_results)
 		.collect::<Vec<_>>();
 
+	// Return the results
 	Ok(json!({ "columnDefinitions": column_definition_results, "deviceResults": device_results }))
 }
 
@@ -154,19 +162,20 @@ pub fn get_recent_entries(
 pub fn search_devices(
 	mut conn: DbConn,
 	search_query: Json<SubmittedSearchQuery>,
-) -> Result<JsonValue, BadRequest<&'static str>> {
+) -> Result<JsonValue, Error> {
+	// Uses
 	use schema::column_definitions::dsl::*;
 
-	// Validate that we're filtering by *something*
-	let search_column_data_is_empty = search_query
+	// Check if any column values were specified for searching
+	let search_column_data_is_present = search_query
 		.column_data
 		.iter()
-		.all(|column| column.data_value.is_empty());
+		.any(|column| !column.data_value.is_empty());
 
 	// Fetch the column definitions
 	let column_definition_results = column_definitions
 		.load::<ColumnDefinition>(&mut conn.0)
-		.expect("unable to load the column definitions");
+		.with_context("unable to load the column definitions")?;
 
 	// Search the device key info
 	// This whole thing is *extremely* ugly. This is because Diesel doesn't support
@@ -188,7 +197,7 @@ pub fn search_devices(
 		    AND (? IS NULL OR 'dki'.'location_id' = ?)\n",
 	);
 	let mut bind_params = Vec::new();
-	if !search_column_data_is_empty {
+	if search_column_data_is_present {
 		search_sql.push_str(
 			"AND ? = (SELECT
                COUNT('dd'.'id')
@@ -219,7 +228,7 @@ pub fn search_devices(
 		.bind::<Text, _>(format!("%{}%", search_query.device_id.as_str()))
 		.bind::<Nullable<Integer>, _>(search_query.location_id)
 		.bind::<Nullable<Integer>, _>(search_query.location_id);
-	if !search_column_data_is_empty {
+	if search_column_data_is_present {
 		device_key_info_query = device_key_info_query.bind::<Integer, _>(bind_params.len() as i32);
 	}
 	for (bind_column_definition_id, bind_data_value_search) in bind_params {
@@ -229,7 +238,7 @@ pub fn search_devices(
 	}
 	let device_key_info_results = device_key_info_query
 		.load::<DeviceInfoByName>(&mut conn.0)
-		.expect("unable to load device info")
+		.with_context("unable to load device info")?
 		.drain(..)
 		.map(Into::into)
 		.collect::<Vec<DeviceInfo>>();
@@ -238,7 +247,7 @@ pub fn search_devices(
 	// Collect the device data
 	let device_data_results = DeviceData::belonging_to(&device_key_info_results)
 		.load::<DeviceData>(&mut conn.0)
-		.expect("unable to load the device data")
+		.with_context("unable to load the device data")?
 		.grouped_by(&device_key_info_results);
 
 	// Bring it together
@@ -247,6 +256,7 @@ pub fn search_devices(
 		.zip(device_data_results)
 		.collect::<Vec<_>>();
 
+	// Return the results
 	Ok(json!({ "columnDefinitions": column_definition_results, "deviceResults": device_results }))
 }
 
@@ -254,7 +264,8 @@ pub fn search_devices(
 pub fn checkout_device(
 	mut conn: DbConn,
 	checkout_info: Json<CheckoutInfo>,
-) -> Result<JsonValue, BadRequest<&'static str>> {
+) -> Result<JsonValue, Error> {
+	// Uses
 	use schema::{device_key_info::dsl::*, locations::dsl::*};
 
 	// Verify the new location
@@ -262,19 +273,19 @@ pub fn checkout_device(
 		.filter(schema::locations::dsl::id.eq(checkout_info.location_id))
 		.select(schema::locations::dsl::name)
 		.get_result::<String>(&mut conn.0)
-		.expect("unable to query the database for location existence");
-	// TODO: Commented out below because of expect above
-	// if
-	// {
-	// 	return Err(BadRequest(Some("Invalid location.")));
-	// }
+		.optional()
+		.with_context("unable to query the database for location existence")?;
+	if location_name.is_none() {
+		return Err(Error::UserNotFound("Invalid location."));
+	}
+	let location_name = location_name.unwrap();
 
 	// Fetch the device's internal ID
 	let internal_id = device_key_info
 		.filter(device_id.eq(checkout_info.device_id.as_str()))
 		.select(schema::device_key_info::dsl::id)
 		.get_result::<i32>(&mut conn.0)
-		.expect("unable to get the internal ID associated with the provided device ID");
+		.with_context("unable to get the internal ID associated with the provided device ID")?;
 
 	// Update the device entry
 	update(device_key_info.filter(schema::device_key_info::dsl::id.eq(internal_id)))
@@ -283,8 +294,9 @@ pub fn checkout_device(
 			last_updated.eq(Utc::now().naive_utc()),
 		))
 		.execute(&mut conn.0)
-		.expect("unable to update device_key_info");
+		.with_context("unable to update device_key_info")?;
 
+	// Return the results
 	Ok(json!({
 		"deviceId": checkout_info.device_id.clone(),
 		"locationId": checkout_info.location_id,
@@ -297,7 +309,8 @@ pub fn checkout_device(
 pub fn create_device(
 	mut conn: DbConn,
 	device_info: Json<SubmittedDeviceInfo>,
-) -> Result<JsonValue, BadRequest<&'static str>> {
+) -> Result<JsonValue, Error> {
+	// Uses
 	use schema::{device_data::dsl::*, device_key_info::dsl::*, locations::dsl::*};
 
 	// Verify the new location
@@ -305,9 +318,9 @@ pub fn create_device(
 		locations.filter(schema::locations::dsl::id.eq(device_info.location_id)),
 	))
 	.get_result::<bool>(&mut conn.0)
-	.expect("unable to query the database for location existence")
+	.with_context("unable to query the database for location existence")?
 	{
-		return Err(BadRequest(Some("Invalid location.")));
+		return Err(Error::UserNotFound("Invalid location."));
 	}
 
 	// Generate a new device ID
@@ -324,20 +337,20 @@ pub fn create_device(
 					last_updated: Utc::now().naive_utc(),
 				})
 				.execute(conn)
-				.with_context(|| "unable to insert into device_key_info")?;
+				.with_context("unable to insert into device_key_info")?;
 
 			// Fetch the new device's internal ID (SQLite doesn't support `RETURNING`
 			// clauses)
 			let new_device_key_info_id = select(last_insert_rowid())
 				.get_result::<i32>(conn)
-				.with_context(|| "unable to get the last insert rowid")?;
+				.with_context("unable to get the last insert rowid")?;
 
 			// SQLite returns a value of 0 if no `INSERT` queries have been run on the
 			// connection - it should never happen, but this is just a sanity check
 			if new_device_key_info_id <= 0 {
-				return Err(anyhow!(
-					"no insert queries have been run on this connection - something is wrong"
-				));
+				return Err(
+					"no insert queries have been run on this connection - something is wrong",
+				)?;
 			}
 
 			// Insert the device column data
@@ -354,12 +367,13 @@ pub fn create_device(
 						.collect::<Vec<_>>(),
 				)
 				.execute(conn)
-				.with_context(|| "unable to insert into device_data")?;
+				.with_context("unable to insert into device_data")?;
 
 			Ok(())
 		})
-		.expect("unable to create the new device entry");
+		.with_context("unable to create the new device entry")?;
 
+	// Return the results
 	Ok(json!({ "deviceId": new_device_id }))
 }
 
@@ -369,7 +383,8 @@ pub fn update_device(
 	mut conn: DbConn,
 	device: String,
 	device_info: Json<SubmittedDeviceInfo>,
-) -> Result<JsonValue, BadRequest<&'static str>> {
+) -> Result<JsonValue, Error> {
+	// Uses
 	use schema::{device_data::dsl::*, device_key_info::dsl::*, locations::dsl::*};
 
 	// Verify the new location
@@ -377,9 +392,9 @@ pub fn update_device(
 		locations.filter(schema::locations::dsl::id.eq(device_info.location_id)),
 	))
 	.get_result::<bool>(&mut conn.0)
-	.expect("unable to query the database for location existence")
+	.with_context("unable to query the database for location existence")?
 	{
-		return Err(BadRequest(Some("Invalid location.")));
+		return Err(Error::UserNotFound("Invalid location."));
 	}
 
 	// Fetch the device's internal ID
@@ -387,7 +402,7 @@ pub fn update_device(
 		.filter(device_id.eq(device.as_str()))
 		.select(schema::device_key_info::dsl::id)
 		.get_result::<i32>(&mut conn.0)
-		.expect("unable to get the internal ID associated with the provided device ID");
+		.with_context("unable to get the internal ID associated with the provided device ID")?;
 
 	// Begin the transaction
 	conn.0
@@ -399,7 +414,7 @@ pub fn update_device(
 					last_updated.eq(Utc::now().naive_utc()),
 				))
 				.execute(conn)
-				.with_context(|| "unable to update device_key_info")?;
+				.with_context("unable to update device_key_info")?;
 
 			// Update the device column data
 			for column in &device_info.column_data {
@@ -410,12 +425,13 @@ pub fn update_device(
 				)
 				.set(data_value.eq(column.data_value.as_str()))
 				.execute(conn)
-				.with_context(|| "unable to update device_data")?;
+				.with_context("unable to update device_data")?;
 			}
 
 			Ok(())
 		})
-		.expect("unable to update the device entry");
+		.with_context("unable to update the device entry")?;
 
+	// Return the results
 	Ok(json!({ "deviceId": device.clone() }))
 }

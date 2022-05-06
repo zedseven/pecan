@@ -1,7 +1,7 @@
 //! An inventory management system.
 
 // Features
-#![feature(proc_macro_hygiene, decl_macro)]
+#![feature(proc_macro_hygiene, decl_macro, min_specialization)]
 // Linting Rules
 #![warn(
 	clippy::complexity,
@@ -49,6 +49,7 @@ use crate::routes::rocket;
 
 // Modules
 mod db;
+mod error;
 mod routes;
 mod util;
 
