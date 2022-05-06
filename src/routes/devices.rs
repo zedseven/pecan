@@ -25,8 +25,8 @@ use rocket_contrib::{
 
 use super::Routable;
 use crate::{
-	db::{functions::last_insert_rowid, models::*, schema, DbConn},
-	error::{Context, Error},
+	db::{models::*, schema, util::fetch_new_rowid_on, DbConn},
+	error::{Context, Error, UserError},
 	util::gen_new_id,
 };
 
@@ -106,7 +106,7 @@ pub fn get_device(mut conn: DbConn, device: String) -> Result<JsonValue, Error> 
 		.optional()
 		.with_context("unable to load device info")?;
 	if device_key_info_results.is_none() {
-		return Err(Error::UserNotFound("Invalid device ID."));
+		return Err(UserError::NotFound("Invalid device ID.").into());
 	}
 	let device_key_info_results = device_key_info_results.unwrap();
 
@@ -127,7 +127,7 @@ pub fn get_recent_entries(mut conn: DbConn, count: u32) -> Result<JsonValue, Err
 	use schema::{column_definitions::dsl::*, device_key_info::dsl::*, locations::dsl::*};
 
 	if count > 100 {
-		return Err(Error::UserNotFound("The count is too high."));
+		return Err(UserError::BadRequest("The count is too high.").into());
 	}
 
 	// Load from the database
@@ -276,7 +276,7 @@ pub fn checkout_device(
 		.optional()
 		.with_context("unable to query the database for location existence")?;
 	if location_name.is_none() {
-		return Err(Error::UserNotFound("Invalid location."));
+		return Err(UserError::NotFound("Invalid location.").into());
 	}
 	let location_name = location_name.unwrap();
 
@@ -320,7 +320,7 @@ pub fn create_device(
 	.get_result::<bool>(&mut conn.0)
 	.with_context("unable to query the database for location existence")?
 	{
-		return Err(Error::UserNotFound("Invalid location."));
+		return Err(UserError::NotFound("Invalid location.").into());
 	}
 
 	// Generate a new device ID
@@ -339,19 +339,9 @@ pub fn create_device(
 				.execute(conn)
 				.with_context("unable to insert into device_key_info")?;
 
-			// Fetch the new device's internal ID (SQLite doesn't support `RETURNING`
-			// clauses)
-			let new_device_key_info_id = select(last_insert_rowid())
-				.get_result::<i32>(conn)
-				.with_context("unable to get the last insert rowid")?;
-
-			// SQLite returns a value of 0 if no `INSERT` queries have been run on the
-			// connection - it should never happen, but this is just a sanity check
-			if new_device_key_info_id <= 0 {
-				return Err(
-					"no insert queries have been run on this connection - something is wrong",
-				)?;
-			}
+			// Fetch the new device's internal ID
+			let new_device_key_info_id = fetch_new_rowid_on(conn)
+				.with_context("unable to get the new device_key_info id")?;
 
 			// Insert the device column data
 			insert_into(device_data)
@@ -394,7 +384,7 @@ pub fn update_device(
 	.get_result::<bool>(&mut conn.0)
 	.with_context("unable to query the database for location existence")?
 	{
-		return Err(Error::UserNotFound("Invalid location."));
+		return Err(UserError::NotFound("Invalid location.").into());
 	}
 
 	// Fetch the device's internal ID

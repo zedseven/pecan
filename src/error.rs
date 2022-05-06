@@ -22,7 +22,7 @@ use thiserror::Error;
 /// ergonomic to use in routes.
 #[derive(Error, Debug)]
 pub enum InternalError {
-	#[error("assertion: {0}")]
+	#[error("assertion failed: {0}")]
 	Assertion(&'static str),
 	#[error("internal database error: {0}")]
 	Diesel(#[from] diesel::result::Error),
@@ -47,15 +47,22 @@ impl From<&'static str> for InternalError {
 	}
 }
 
+/// The internal error type, with Rocket's [`Responder`] implemented to make it
+/// ergonomic to use in routes.
+#[derive(Error, Debug)]
+pub enum UserError {
+	#[error("{0}")]
+	BadRequest(&'static str),
+	#[error("{0}")]
+	NotFound(&'static str),
+}
+
 /// The [`InternalError`] type, with context.
 #[derive(Error, Debug)]
 pub enum Error {
-	/// User errors for a *400 Bad Request*.
-	#[error("bad request: {0}")]
-	UserBadRequest(&'static str),
-	/// User errors for a *404 Not Found*.
-	#[error("not found: {0}")]
-	UserNotFound(&'static str),
+	/// User errors with *a message to be displayed to the user*.
+	#[error("user error: {0}")]
+	User(#[from] UserError),
 	/// Internal errors without context.
 	#[error(transparent)]
 	NoContext(#[from] InternalError),
@@ -73,7 +80,10 @@ impl Error {
 	where
 		S: Into<String>,
 	{
-		#[allow(clippy::wildcard_enum_match_arm)]
+		#[allow(
+			clippy::wildcard_enum_match_arm,
+			clippy::match_wildcard_for_single_variants
+		)]
 		match self {
 			Self::NoContext(source) => Self::WithContext {
 				source,
@@ -133,9 +143,17 @@ impl<T> Context<T, Error> for Result<T, Error> {
 // Responder Implementations
 impl<'r> Responder<'r> for InternalError {
 	fn respond_to(self, request: &Request) -> response::Result<'r> {
-		eprintln!("{:?}", self);
-
+		eprintln!("{}", self);
 		Status::InternalServerError.respond_to(request)
+	}
+}
+
+impl<'r> Responder<'r> for UserError {
+	fn respond_to(self, request: &Request) -> response::Result<'r> {
+		match self {
+			UserError::BadRequest(message) => BadRequest(Some(message)).respond_to(request),
+			UserError::NotFound(message) => NotFound(Some(message)).respond_to(request),
+		}
 	}
 }
 
@@ -143,8 +161,7 @@ impl<'r> Responder<'r> for InternalError {
 impl<'r> Responder<'r> for Error {
 	fn respond_to(self, request: &Request) -> response::Result<'r> {
 		match self {
-			Error::UserBadRequest(message) => BadRequest(Some(message)).respond_to(request),
-			Error::UserNotFound(message) => NotFound(Some(message)).respond_to(request),
+			Error::User(err) => err.respond_to(request),
 			Error::NoContext(err) | Error::WithContext { source: err, .. } => {
 				err.respond_to(request)
 			}
