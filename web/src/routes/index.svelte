@@ -75,79 +75,92 @@
 
 <svelte:component this={navBar} />
 
-{#await loadingPromise}
-	<svelte:component this={loading} />
-{:then loadingResult}
-	{#if loadingResult.ok}
-		<h3 id="newDeviceLink"><a href="/edit">Add a New Device</a></h3>
-		<form on:submit|preventDefault={onSearch} method="post">
-			<table>
-				<tr class="headerRow">
-					<th>Device ID</th>
-					<th>Location</th>
-					<th>Last Updated</th>
-					{#each columnDefinitions as columnDefinition}
-						<th>{columnDefinition.name}</th>
-					{/each}
-					<th colspan="2" />
-				</tr>
-				<tr class="headerRow">
-					<td>
-						<svelte:component
-							this={searchBar}
-							placeholder="Filter by Device ID"
-							bind:value={searchData.deviceId}
-						/>
-					</td>
-					<td>
-						<svelte:component
-							this={locationSelector}
-							bind:value={searchData.locationId}
-							emptyValueLabel="-- Filter by Location --"
-							disableEmptyValue={false}
-						/>
-					</td>
-					<td />
-					{#each columnDefinitions as columnDefinition}
+<div id="content">
+	<h3 id="newDeviceLink"><a href="/edit">Add a New Device</a></h3>
+	{#await loadingPromise}
+		<svelte:component this={loading} />
+	{:then loadingResult}
+		{#if loadingResult.ok}
+			<form on:submit|preventDefault={onSearch} method="post">
+				<table>
+					<tr class="headerRow">
+						<th colspan="2">Last Updated</th>
+						<th><label for="filterDeviceId" class="block">Device ID</label></th>
+						<th><label for="filterLocation" class="block">Location</label></th>
+						{#each columnDefinitions as columnDefinition}
+							<th>
+								<label for="filterColumn{columnDefinition.id}" class="block">
+									{columnDefinition.name}
+								</label>
+							</th>
+						{/each}
+					</tr>
+					<tr class="headerRow">
+						<td colspan="2"><input type="submit" id="searchButton" value="Search" /></td>
 						<td>
 							<svelte:component
 								this={searchBar}
-								placeholder="Filter by {columnDefinition.name}"
-								bind:value={searchData.columnData[columnDefinition.id].dataValue}
+								bind:value={searchData.deviceId}
+								id="filterDeviceId"
+								className="maxWidth"
+								placeholder="Filter by Device ID"
 							/>
 						</td>
-					{/each}
-					<td colspan="2"><input type="submit" value="Search" /></td>
-				</tr>
-				{#each deviceResults as deviceResult}
-					<tr>
-						<td class="monospace">{deviceResult[0].deviceId}</td>
-						<td>{deviceResult[0].location}</td>
-						<td>
-							<svelte:component this={datetime} datetimeUtc={deviceResult[0].lastUpdated + 'Z'} />
-						</td>
-						{#each deviceResult[1] as columnValue}
-							<td>{columnValue.dataValue}</td>
-						{/each}
 						<td>
 							<svelte:component
-								this={checkoutButton}
-								deviceId={deviceResult[0].deviceId}
-								bind:currentLocationId={deviceResult[0].locationId}
-								bind:currentLocationName={deviceResult[0].location}
+								this={locationSelector}
+								bind:value={searchData.locationId}
+								id="filterLocation"
+								className="maxWidth"
+								emptyValueLabel="-- Filter by Location --"
+								disableEmptyValue={false}
 							/>
 						</td>
-						<td><a href="/edit/{deviceResult[0].deviceId}">Edit</a></td>
+						{#each columnDefinitions as columnDefinition}
+							<td>
+								<svelte:component
+									this={searchBar}
+									bind:value={searchData.columnData[columnDefinition.id].dataValue}
+									id="filterColumn{columnDefinition.id}"
+									className="maxWidth"
+									placeholder="Filter by {columnDefinition.name}"
+								/>
+							</td>
+						{/each}
 					</tr>
-				{/each}
-			</table>
-		</form>
-	{:else}
-		<svelte:component this={responseError} error={loadingResult.error} />
-	{/if}
-{:catch}
-	<svelte:component this={couldntConnect} />
-{/await}
+					{#each deviceResults as deviceResult}
+						<tr>
+							<td>
+								<svelte:component
+									this={checkoutButton}
+									deviceId={deviceResult[0].deviceId}
+									bind:currentLocationId={deviceResult[0].locationId}
+									bind:currentLocationName={deviceResult[0].location}
+								/>
+							</td>
+							<td>
+								<svelte:component this={datetime} datetimeUtc={deviceResult[0].lastUpdated + 'Z'} />
+							</td>
+							<td class="centerContents monospace slightlyLargerFont">
+								<a href="/edit/{deviceResult[0].deviceId}" class="block"
+									>{deviceResult[0].deviceId}</a
+								>
+							</td>
+							<td>{deviceResult[0].location}</td>
+							{#each deviceResult[1] as columnValue}
+								<td>{columnValue.dataValue}</td>
+							{/each}
+						</tr>
+					{/each}
+				</table>
+			</form>
+		{:else}
+			<svelte:component this={responseError} error={loadingResult.error} />
+		{/if}
+	{:catch}
+		<svelte:component this={couldntConnect} />
+	{/await}
+</div>
 
 <style>
 	tr:not(.headerRow):hover {
@@ -156,5 +169,8 @@
 
 	#newDeviceLink {
 		margin: 0.2em;
+	}
+	#searchButton {
+		width: 100%;
 	}
 </style>

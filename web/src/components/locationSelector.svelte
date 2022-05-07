@@ -5,6 +5,7 @@
 	// Component Data
 	export let value = null;
 	export let id = null;
+	export let className = null;
 	export let required = false;
 	export let emptyValueLabel = '-- Location --';
 	export let disableEmptyValue = true;
@@ -24,7 +25,7 @@
 
 {#await loadingPromise then loadingResult}
 	{#if loadingResult.ok}
-		<select {id} {required} bind:value>
+		<select {id} class={className} {required} bind:value>
 			<option value={null} disabled={disableEmptyValue}>{emptyValueLabel}</option>
 			{#each definitions.locations as location}
 				<option value={location.id}>{location.name}</option>

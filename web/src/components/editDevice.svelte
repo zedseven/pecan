@@ -108,88 +108,93 @@
 	};
 </script>
 
-{#await loadingPromise}
-	<svelte:component this={loading} />
-{:then loadingResult}
-	{#if loadingResult.ok}
-		<form on:submit|preventDefault={onSubmit} method="post">
-			<table>
-				<tr>
-					{#if deviceId}
-						<th>Device ID</th>
-					{/if}
-					<th><label for="location">Location</label></th>
-					{#each definitions.columnDefinitions as columnDefinition}
-						<th><label for="column{columnDefinition.id}">{columnDefinition.name}</label></th>
-					{/each}
-				</tr>
-				<tr>
-					{#if deviceId}
-						<td class="monospace">{deviceId}</td>
-					{/if}
-					<td>
-						<svelte:component
-							this={locationSelector}
-							bind:value={deviceData.locationId}
-							id="location"
-							required={true}
-						/>
-					</td>
-					{#each definitions.columnDefinitions as columnDefinition}
+<div id="content">
+	{#await loadingPromise}
+		<svelte:component this={loading} />
+	{:then loadingResult}
+		{#if loadingResult.ok}
+			<form on:submit|preventDefault={onSubmit} method="post">
+				<table>
+					<tr>
+						{#if deviceId}
+							<th>Device ID</th>
+						{/if}
+						<th><label for="location">Location</label></th>
+						{#each definitions.columnDefinitions as columnDefinition}
+							<th><label for="column{columnDefinition.id}">{columnDefinition.name}</label></th>
+						{/each}
+					</tr>
+					<tr>
+						{#if deviceId}
+							<td class="centerContents monospace slightlyLargerFont">{deviceId}</td>
+						{/if}
 						<td>
-							<input
-								id="column{columnDefinition.id}"
-								type="text"
-								placeholder={columnDefinition.name}
-								bind:value={deviceData.columnData[columnDefinition.id].dataValue}
+							<svelte:component
+								this={locationSelector}
+								bind:value={deviceData.locationId}
+								id="location"
+								required={true}
 							/>
 						</td>
-					{/each}
-				</tr>
-			</table>
-			<h2>Components</h2>
-			<table>
-				<tr>
-					<th>Component ID</th>
-					<th>Component Type</th>
-				</tr>
-				{#each deviceData.components as deviceComponent}
+						{#each definitions.columnDefinitions as columnDefinition}
+							<td>
+								<input
+									id="column{columnDefinition.id}"
+									type="text"
+									placeholder={columnDefinition.name}
+									bind:value={deviceData.columnData[columnDefinition.id].dataValue}
+								/>
+							</td>
+						{/each}
+					</tr>
+				</table>
+				<h2>Components</h2>
+				<table>
 					<tr>
-						<td class="monospace">
-							{#if deviceComponent.componentId}{deviceId}-{deviceComponent.componentId}{:else}&lt;Not
-								Submitted&gt;{/if}
-						</td>
+						<th>ID</th>
+						<th>Component</th>
+					</tr>
+					{#each deviceData.components as deviceComponent}
+						<tr>
+							{#if deviceComponent.componentId}
+								<td class="centerContents monospace slightlyLargerFont">
+									{deviceId}-{deviceComponent.componentId}
+								</td>
+							{:else}
+								<td class="centerContents monospace">&lt;Not Submitted&gt;</td>
+							{/if}
+							<td>
+								<input
+									id="component{deviceComponent.componentId}Type"
+									type="text"
+									placeholder="Component Type"
+									bind:value={deviceComponent.componentType}
+								/>
+							</td>
+						</tr>
+					{/each}
+					<tr>
+						<td><button on:click={addNewComponent} class="maxWidth">Add to List</button></td>
 						<td>
 							<input
-								id="component{deviceComponent.componentId}Type"
+								id="newComponentType"
 								type="text"
 								placeholder="Component Type"
-								bind:value={deviceComponent.componentType}
+								bind:value={newComponent.componentType}
 							/>
 						</td>
 					</tr>
-				{/each}
-				<tr>
-					<td><button on:click={addNewComponent}>Add to List</button></td>
-					<td>
-						<input
-							id="newComponentType"
-							type="text"
-							placeholder="Component Type"
-							bind:value={newComponent.componentType}
-						/>
-					</td>
-				</tr>
-			</table>
-			{#if deviceId}
-				<input type="submit" value="Update" />
-			{:else}
-				<input type="submit" value="Add" />
-			{/if}
-		</form>
-	{:else}
-		<svelte:component this={responseError} error={loadingResult.error} />
-	{/if}
-{:catch}
-	<svelte:component this={couldntConnect} />
-{/await}
+				</table>
+				{#if deviceId}
+					<input type="submit" value="Update" />
+				{:else}
+					<input type="submit" value="Add" />
+				{/if}
+			</form>
+		{:else}
+			<svelte:component this={responseError} error={loadingResult.error} />
+		{/if}
+	{:catch}
+		<svelte:component this={couldntConnect} />
+	{/await}
+</div>

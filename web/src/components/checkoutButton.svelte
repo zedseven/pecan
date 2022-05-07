@@ -35,19 +35,17 @@
 			}
 
 			const checkoutUrl = '/api/devices/checkout';
-			postData(checkoutUrl, inputData)
-				.then(handleNetworkResponse)
-				.then(async (checkoutResult) => {
-					// If there was an error, return it for processing below
-					if (!checkoutResult.ok) return checkoutResult;
+			postData(checkoutUrl, inputData).then(async (checkoutResult) => {
+				// If there was an error, return it for processing below
+				if (!checkoutResult.ok) return checkoutResult;
 
-					// Set the state
-					clickState = ClickState.NotClicked;
-					currentLocationId = checkoutResult.value.locationId;
-					currentLocationName = checkoutResult.value.locationName;
+				// Set the state
+				clickState = ClickState.NotClicked;
+				currentLocationId = checkoutResult.value.locationId;
+				currentLocationName = checkoutResult.value.locationName;
 
-					return Ok({});
-				});
+				return Ok({});
+			});
 		} else if (clickState === ClickState.NotClicked) {
 			clickState = ClickState.Primed;
 			// Reset the state if not clicked again in 5 seconds
@@ -61,7 +59,7 @@
 </script>
 
 {#if $selectedLocation === null}
-	<button disabled="disabled">Select your location</button>
+	<button disabled="disabled">Select location</button>
 {:else if $selectedLocation === currentLocationId}
 	<button disabled="disabled">Already assigned</button>
 {:else if clickState === ClickState.Loading}
@@ -71,3 +69,9 @@
 {:else}
 	<button on:click={clicked}>Assign to me</button>
 {/if}
+
+<style>
+	button {
+		width: 9em;
+	}
+</style>
