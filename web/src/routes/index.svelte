@@ -142,9 +142,9 @@
 								<svelte:component this={datetime} datetimeUtc={deviceResult[0].lastUpdated + 'Z'} />
 							</td>
 							<td class="centerContents monospace slightlyLargerFont">
-								<a href="/edit/{deviceResult[0].deviceId}" class="block"
-									>{deviceResult[0].deviceId}</a
-								>
+								<a href="/edit/{deviceResult[0].deviceId}" class="block altLink">
+									{deviceResult[0].deviceId}
+								</a>
 							</td>
 							<td>{deviceResult[0].location}</td>
 							{#each deviceResult[1] as columnValue}

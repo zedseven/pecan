@@ -148,6 +148,7 @@
 						{/each}
 					</tr>
 				</table>
+				<br />
 				<h2>Components</h2>
 				<table>
 					<tr>
@@ -185,6 +186,7 @@
 						</td>
 					</tr>
 				</table>
+				<br />
 				{#if deviceId}
 					<input type="submit" value="Update" />
 				{:else}

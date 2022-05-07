@@ -20,6 +20,9 @@ a:active {
 a:visited {
     color: steelblue;
 }
+.altLink, .altLink:hover, .altLink:active, .altLink:visited {
+    color: teal;
+}
 
 /* Adds slightly more space between neighbouring columns' text */
 td {
@@ -44,7 +47,7 @@ td {
     user-select: none;
 }
 .slightlyLargerFont {
-    font-size: 1.075em;
+    font-size: 1.05em;
 }
 
 #content {
