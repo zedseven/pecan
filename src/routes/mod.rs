@@ -4,10 +4,11 @@ use rocket_contrib::serve::StaticFiles;
 
 use crate::{
 	db::{init as init_db, DbConn},
-	routes::{devices::DevicesApi, svelte_pages::SveltePages},
+	routes::{admin::AdminApi, devices::DevicesApi, svelte_pages::SveltePages},
 };
 
 // Modules
+mod admin;
 mod devices;
 mod svelte_pages;
 
@@ -23,6 +24,10 @@ pub fn rocket() -> Rocket {
 		.mount(
 			format!("{}{}", API_ROOT, DevicesApi::PATH).as_str(),
 			DevicesApi::ROUTES(),
+		)
+		.mount(
+			format!("{}{}", API_ROOT, AdminApi::PATH).as_str(),
+			AdminApi::ROUTES(),
 		)
 		.mount(SveltePages::PATH, SveltePages::ROUTES())
 		.mount("/", StaticFiles::from(SVELTE_PATH))

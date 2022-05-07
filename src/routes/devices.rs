@@ -27,7 +27,7 @@ use super::Routable;
 use crate::{
 	db::{models::*, schema, util::fetch_new_rowid_on, DbConn},
 	error::{Context, Error, UserError},
-	util::gen_new_id,
+	util::{gen_new_component_id, gen_new_device_id},
 };
 
 /// The route for this section.
@@ -37,7 +37,6 @@ impl Routable for DevicesApi {
 	const ROUTES: &'static dyn Fn() -> Vec<Route> = &|| {
 		routes![
 			get_definitions,
-			get_recent_entries,
 			search_devices,
 			get_device,
 			checkout_device,
@@ -50,9 +49,28 @@ impl Routable for DevicesApi {
 // Type Definitions
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SubmittedDeviceInfo {
+pub struct NewDeviceInfo {
 	location_id: i32,
 	column_data: Vec<SubmittedColumnData>,
+	components: Vec<NewDeviceComponent>,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdatedDeviceInfo {
+	location_id: i32,
+	column_data: Vec<SubmittedColumnData>,
+	components: Vec<UpdatedDeviceComponent>,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewDeviceComponent {
+	component_type: String,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdatedDeviceComponent {
+	component_id: Option<String>,
+	component_type: String,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -114,47 +132,17 @@ pub fn get_device(mut conn: DbConn, device: String) -> Result<JsonValue, Error> 
 		.get_results::<DeviceData>(&mut conn.0)
 		.with_context("unable to load the device data")?;
 
+	let device_component_results = DeviceComponent::belonging_to(&device_key_info_results)
+		.get_results::<DeviceComponent>(&mut conn.0)
+		.with_context("unable to load the device components")?;
+
 	// Return the results
+	// This odd return format is to match how the data is returned in search
+	// results.
 	Ok(json!({
-		"deviceResults": (device_key_info_results, device_data_results)
+		"deviceResults": (device_key_info_results, device_data_results),
+		"deviceComponents": device_component_results
 	}))
-}
-
-/// Fetches the most recently-updated `count` entries.
-#[get("/recent/<count>")]
-pub fn get_recent_entries(mut conn: DbConn, count: u32) -> Result<JsonValue, Error> {
-	// Uses
-	use schema::{column_definitions::dsl::*, device_key_info::dsl::*, locations::dsl::*};
-
-	if count > 100 {
-		return Err(UserError::BadRequest("The count is too high.").into());
-	}
-
-	// Load from the database
-	let column_definition_results = column_definitions
-		.load::<ColumnDefinition>(&mut conn.0)
-		.with_context("unable to load the column definitions")?;
-
-	let device_key_info_results = device_key_info
-		.order(last_updated.desc())
-		.limit(i64::from(count))
-		.inner_join(locations)
-		.select(DEVICE_INFO)
-		.load::<DeviceInfo>(&mut conn.0)
-		.with_context("unable to load device info")?;
-
-	let device_data_results = DeviceData::belonging_to(&device_key_info_results)
-		.load::<DeviceData>(&mut conn.0)
-		.with_context("unable to load the device data")?
-		.grouped_by(&device_key_info_results);
-
-	let device_results = device_key_info_results
-		.into_iter()
-		.zip(device_data_results)
-		.collect::<Vec<_>>();
-
-	// Return the results
-	Ok(json!({ "columnDefinitions": column_definition_results, "deviceResults": device_results }))
 }
 
 /// Fetches the most recently-updated `count` entries.
@@ -308,10 +296,15 @@ pub fn checkout_device(
 #[post("/create", data = "<device_info>")]
 pub fn create_device(
 	mut conn: DbConn,
-	device_info: Json<SubmittedDeviceInfo>,
+	device_info: Json<NewDeviceInfo>,
 ) -> Result<JsonValue, Error> {
 	// Uses
-	use schema::{device_data::dsl::*, device_key_info::dsl::*, locations::dsl::*};
+	use schema::{
+		device_components::dsl::*,
+		device_data::dsl::*,
+		device_key_info::dsl::*,
+		locations::dsl::*,
+	};
 
 	// Verify the new location
 	if !select(exists(
@@ -324,7 +317,8 @@ pub fn create_device(
 	}
 
 	// Generate a new device ID
-	let new_device_id = gen_new_id(&mut conn);
+	let new_device_id =
+		gen_new_device_id(&mut conn.0).with_context("unable to generate a new device ID")?;
 
 	// Begin the transaction
 	conn.0
@@ -359,6 +353,24 @@ pub fn create_device(
 				.execute(conn)
 				.with_context("unable to insert into device_data")?;
 
+			// Insert all of the components
+			for component in &device_info.components {
+				// This could definitely be made more performant, but in this case it's not
+				// really necessary and this is convenient
+				let new_component_id = gen_new_component_id(conn, new_device_key_info_id)
+					.with_context("unable to generate a new component ID")?;
+
+				// Insert the component
+				insert_into(device_components)
+					.values(DeviceComponentNew {
+						device_key_info_id: new_device_key_info_id,
+						component_id: Cow::from(new_component_id.as_str()),
+						component_type: Cow::from(component.component_type.as_str()),
+					})
+					.execute(conn)
+					.with_context("unable to insert into device_components")?;
+			}
+
 			Ok(())
 		})
 		.with_context("unable to create the new device entry")?;
@@ -368,14 +380,21 @@ pub fn create_device(
 }
 
 /// Updates a device's data.
+///
+/// TODO: Combine this with `create_device`.
 #[post("/update/<device>", data = "<device_info>")]
 pub fn update_device(
 	mut conn: DbConn,
 	device: String,
-	device_info: Json<SubmittedDeviceInfo>,
+	device_info: Json<UpdatedDeviceInfo>,
 ) -> Result<JsonValue, Error> {
 	// Uses
-	use schema::{device_data::dsl::*, device_key_info::dsl::*, locations::dsl::*};
+	use schema::{
+		device_components::dsl::*,
+		device_data::dsl::*,
+		device_key_info::dsl::*,
+		locations::dsl::*,
+	};
 
 	// Verify the new location
 	if !select(exists(
@@ -410,12 +429,41 @@ pub fn update_device(
 			for column in &device_info.column_data {
 				update(
 					device_data
-						.filter(device_key_info_id.eq(internal_id))
+						.filter(schema::device_data::dsl::device_key_info_id.eq(internal_id))
 						.filter(column_definition_id.eq(column.column_definition_id)),
 				)
 				.set(data_value.eq(column.data_value.as_str()))
 				.execute(conn)
 				.with_context("unable to update device_data")?;
+			}
+
+			// Update the device components
+			for component in &device_info.components {
+				if let Some(existing_id) = &component.component_id {
+					update(
+						device_components
+							.filter(
+								schema::device_components::dsl::device_key_info_id.eq(internal_id),
+							)
+							.filter(component_id.eq(existing_id.as_str())),
+					)
+					.set(component_type.eq(component.component_type.as_str()))
+					.execute(conn)
+					.with_context("unable to update device_components")?;
+				} else {
+					let new_component_id = gen_new_component_id(conn, internal_id)
+						.with_context("unable to generate a new component ID")?;
+
+					// Insert the component
+					insert_into(device_components)
+						.values(DeviceComponentNew {
+							device_key_info_id: internal_id,
+							component_id: Cow::from(new_component_id.as_str()),
+							component_type: Cow::from(component.component_type.as_str()),
+						})
+						.execute(conn)
+						.with_context("unable to insert into device_components")?;
+				}
 			}
 
 			Ok(())

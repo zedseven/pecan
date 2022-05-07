@@ -19,58 +19,54 @@
 		columnData: {},
 	};
 
-	// Load the devices
-	const url = '/api/devices/recent/10';
-	let loadingPromise = fetch(url, { method: 'get' })
-		.then(handleNetworkResponse)
-		.then(async (queryResult) => {
-			// If there was an error, return it for processing below
-			if (!queryResult.ok) return queryResult;
-
-			// Store the results
-			columnDefinitions = queryResult.value.columnDefinitions;
-			deviceResults = queryResult.value.deviceResults;
-
-			// Set up the searchData for binding
-			for (const columnDefinition of columnDefinitions) {
-				searchData.columnData[columnDefinition.id] = {
-					columnDefinitionId: columnDefinition.id,
-					dataValue: null,
-				};
-			}
-			console.log(searchData);
-
-			return Ok({});
-		});
-
 	// Handle search queries
-	const onSearch = async (event) => {
-		event.preventDefault();
+	const sendSearch = async (data = null) => {
 		let inputData = {
 			deviceId: '',
 			locationId: null,
 			columnData: [],
 		};
 
-		// Prepare the input data
-		inputData.deviceId = searchData.deviceId;
-		inputData.locationId = searchData.locationId ? searchData.locationId : null;
-		inputData.columnData = sanitiseObjectMapToArray(searchData.columnData);
+		if (data != null) {
+			inputData.deviceId = data.deviceId;
+			inputData.locationId = data.locationId ? data.locationId : null;
+			inputData.columnData = sanitiseObjectMapToArray(data.columnData);
+		}
 
 		const searchUrl = '/api/devices/search';
-		loadingPromise = postData(searchUrl, inputData)
-			.then(handleNetworkResponse)
-			.then(async (searchResult) => {
-				// If there was an error, return it for processing below
-				if (!searchResult.ok) return searchResult;
+		return postData(searchUrl, inputData).then(async (searchResult) => {
+			// If there was an error, return it for processing below
+			if (!searchResult.ok) return searchResult;
 
-				// Store the results
-				columnDefinitions = searchResult.value.columnDefinitions;
-				deviceResults = searchResult.value.deviceResults;
+			// Store the results
+			columnDefinitions = searchResult.value.columnDefinitions;
+			deviceResults = searchResult.value.deviceResults;
 
-				return Ok({});
-			});
+			return searchResult;
+		});
 	};
+
+	const onSearch = async (event) => {
+		event.preventDefault();
+
+		loadingPromise = sendSearch(searchData);
+	};
+
+	// Load the devices
+	let loadingPromise = sendSearch(null).then(async (queryResult) => {
+		// If there was an error, return it for processing below
+		if (!queryResult.ok) return queryResult;
+
+		// Set up the searchData for binding
+		for (const columnDefinition of columnDefinitions) {
+			searchData.columnData[columnDefinition.id] = {
+				columnDefinitionId: columnDefinition.id,
+				dataValue: null,
+			};
+		}
+
+		return Ok({});
+	});
 </script>
 
 <svelte:head>
@@ -83,6 +79,7 @@
 	<svelte:component this={loading} />
 {:then loadingResult}
 	{#if loadingResult.ok}
+		<h3 id="newDeviceLink"><a href="/edit">Add a New Device</a></h3>
 		<form on:submit|preventDefault={onSearch} method="post">
 			<table>
 				<tr class="headerRow">
@@ -155,5 +152,9 @@
 <style>
 	tr:not(.headerRow):hover {
 		background-color: #dddddd;
+	}
+
+	#newDeviceLink {
+		margin: 0.2em;
 	}
 </style>

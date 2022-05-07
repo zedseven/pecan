@@ -24,3 +24,12 @@ CREATE TABLE 'device_data' (
 	FOREIGN KEY ('device_key_info_id') REFERENCES 'device_key_info'('id'),
 	FOREIGN KEY ('column_definition_id') REFERENCES 'column_definitions'('id')
 );
+
+CREATE TABLE 'device_components' (
+    'id' INTEGER PRIMARY KEY NOT NULL,
+    'device_key_info_id' INTEGER NOT NULL,
+	'component_id' TEXT NOT NULL,
+	'component_type' TEXT NOT NULL,
+	FOREIGN KEY ('device_key_info_id') REFERENCES 'device_key_info'('id'),
+	UNIQUE ('device_key_info_id', 'component_id')
+);

@@ -68,6 +68,23 @@ pub struct DeviceDataNew<'a> {
 	pub data_value: Cow<'a, str>,
 }
 
+#[derive(Associations, Identifiable, Queryable, Serialize, Deserialize, Debug)]
+#[diesel(table_name = device_components, belongs_to(DeviceInfo<'_>, foreign_key = device_key_info_id))]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceComponent<'a> {
+	pub id: i32,
+	pub device_key_info_id: i32,
+	pub component_id: Cow<'a, str>,
+	pub component_type: Cow<'a, str>,
+}
+#[derive(Insertable, Debug)]
+#[diesel(table_name = device_components)]
+pub struct DeviceComponentNew<'a> {
+	pub device_key_info_id: i32,
+	pub component_id: Cow<'a, str>,
+	pub component_type: Cow<'a, str>,
+}
+
 // Select Definitions
 
 macro_rules! select_def {

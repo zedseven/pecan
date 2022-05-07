@@ -40,7 +40,7 @@ export const postData = async (input: RequestInfo, data: any) => {
 			'Content-Type': 'application/json;charset=utf-8',
 		},
 		body: JSON.stringify(data),
-	});
+	}).then(handleNetworkResponse);
 };
 
 // Convert from an Object to an Array, and run a closure on each entry.

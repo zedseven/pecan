@@ -13,6 +13,11 @@
 	let deviceData = {
 		locationId: $selectedLocation, // Default to the selected location for ergonomics
 		columnData: {},
+		components: [],
+	};
+	let newComponent = {
+		componentId: null,
+		componentType: '',
 	};
 
 	// Fetch the necessary information from the server
@@ -49,6 +54,12 @@
 				dataValue: deviceColumnData.dataValue,
 			};
 		}
+		for (const deviceComponent of deviceResult.value.deviceComponents) {
+			deviceData.components.push({
+				componentId: deviceComponent.componentId,
+				componentType: deviceComponent.componentType,
+			});
+		}
 
 		return Ok({});
 	});
@@ -59,7 +70,11 @@
 		let inputData = {
 			locationId: null,
 			columnData: [],
+			components: [],
 		};
+
+		// Add the existing new component entry to the list if necessary
+		addNewComponent();
 
 		// Validate and sanitise the input data
 		if (!deviceData.locationId) {
@@ -68,6 +83,7 @@
 		}
 		inputData.locationId = deviceData.locationId;
 		inputData.columnData = sanitiseObjectMapToArray(deviceData.columnData);
+		inputData.components = deviceData.components;
 
 		// Push it to the server
 		const addDeviceUrl = '/api/devices/create';
@@ -75,12 +91,20 @@
 		const url = deviceId ? updateDeviceUrl + deviceId : addDeviceUrl;
 		let pushResult = await postData(url, inputData);
 
-		// Redirect if successful
-		if (pushResult.ok) {
-			window.location = '/';
-		}
+		console.log(pushResult);
 
-		console.log(await pushResult.text());
+		// Redirect/refresh if successful
+		if (pushResult.ok) {
+			window.location = '/edit/' + pushResult.value.deviceId;
+		}
+	};
+
+	// Add a new component to the list
+	const addNewComponent = (event = undefined) => {
+		if (event) event.preventDefault();
+		if (!newComponent.componentType) return;
+		deviceData.components = [...deviceData.components, Object.assign({}, newComponent)];
+		newComponent.componentType = '';
 	};
 </script>
 
@@ -121,6 +145,40 @@
 							/>
 						</td>
 					{/each}
+				</tr>
+			</table>
+			<h2>Components</h2>
+			<table>
+				<tr>
+					<th>Component ID</th>
+					<th>Component Type</th>
+				</tr>
+				{#each deviceData.components as deviceComponent}
+					<tr>
+						<td class="monospace">
+							{#if deviceComponent.componentId}{deviceId}-{deviceComponent.componentId}{:else}&lt;Not
+								Submitted&gt;{/if}
+						</td>
+						<td>
+							<input
+								id="component{deviceComponent.componentId}Type"
+								type="text"
+								placeholder="Component Type"
+								bind:value={deviceComponent.componentType}
+							/>
+						</td>
+					</tr>
+				{/each}
+				<tr>
+					<td><button on:click={addNewComponent}>Add to List</button></td>
+					<td>
+						<input
+							id="newComponentType"
+							type="text"
+							placeholder="Component Type"
+							bind:value={newComponent.componentType}
+						/>
+					</td>
 				</tr>
 			</table>
 			{#if deviceId}

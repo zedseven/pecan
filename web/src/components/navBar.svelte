@@ -5,12 +5,12 @@
 	import locationSelector from './locationSelector.svelte';
 </script>
 
-<header id="navBar">
+<header id="navBar" class="noSelect">
 	<div id="primary">
 		<a href="/"><h1 id="title">{appName}</h1></a>
 	</div>
 	<div id="secondary">
-		<label for="locationSelector">Your Location: </label>
+		<label for="locationSelector">Location: </label>
 		<svelte:component
 			this={locationSelector}
 			bind:value={$selectedLocation}
