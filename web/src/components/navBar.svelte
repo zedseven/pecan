@@ -2,6 +2,7 @@
 	// Imports
 	import { appName } from '../constants';
 	import { selectedLocation } from '../stores';
+	import globalStyle from './globalStyle.svelte';
 	import locationSelector from './locationSelector.svelte';
 </script>
 
@@ -19,6 +20,8 @@
 		/>
 	</div>
 </header>
+
+<svelte:component this={globalStyle} />
 
 <style>
 	#navBar {
