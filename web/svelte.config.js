@@ -3,22 +3,22 @@ import preprocess from 'svelte-preprocess';
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
-	// Consult https://github.com/sveltejs/svelte-preprocess
-	// for more information about preprocessors
-	preprocess: preprocess(),
-
+	compilerOptions: { enableSourcemap: true },
 	kit: {
 		adapter: adapter(),
 		prerender: {
 			default: true,
+			enabled: true,
 		},
 		vite: {
-			mode: process.env.BUILD_MODE || 'development', // https://github.com/sveltejs/kit/issues/1258#issuecomment-874482104
 			build: {
 				minify: process.env.BUILD_MODE || 'development' !== 'development',
+				sourcemap: true,
 			},
+			mode: process.env.BUILD_MODE || 'development', // https://github.com/sveltejs/kit/issues/1258#issuecomment-874482104
 		},
 	},
+	preprocess: preprocess(),
 };
 
 export default config;
