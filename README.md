@@ -1,3 +1,5 @@
+<img src="web/static/logo.png" alt="Logo" title="Logo" align="right" width="20%">
+
 # pecan
 [![License: MIT/Apache-2.0](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](LICENSE-MIT)
 [![# Issues](https://img.shields.io/github/issues/zedseven/pecan.svg?logo=github)](https://github.com/zedseven/pecan/issues)
@@ -20,3 +22,6 @@ at your option.
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in *pecan* by you, as defined in the Apache-2.0 license,
 shall be dual licensed as above, without any additional terms or conditions.
+
+## Attribution
+The logo is sourced from [Flaticon](https://www.flaticon.com/free-icon/pecan_2227352), made by Smashicons.

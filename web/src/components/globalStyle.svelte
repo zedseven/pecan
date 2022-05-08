@@ -10,12 +10,12 @@
 	a:hover,
 	a:active,
 	a:visited {
-		color: steelblue;
+		color: #288bdd;
 	}
 	a {
 		text-decoration: none;
 	}
-	a:hover {
+	a:hover, a:hover > * {
 		text-decoration: underline;
 	}
 	a:active {

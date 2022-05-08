@@ -4,11 +4,19 @@
 	import { selectedLocation } from '../stores';
 	import globalStyle from './globalStyle.svelte';
 	import locationSelector from './locationSelector.svelte';
+
+	// Set the logo filetype based on SVG support
+	let svgFiletype = document.implementation.hasFeature("http://www.w3.org/TR/SVG11/feature#Image", "1.1") ? 'svg' : 'png';
 </script>
+
+<svelte:head>
+	<link rel="icon" href="/favicon.png" type="image/png" />
+	<link rel="icon" href="/favicon.svg" type="image/svg" />
+</svelte:head>
 
 <header id="navBar" class="noSelect">
 	<div id="primary">
-		<a href="/"><h1 id="title">{appName}</h1></a>
+		<a href="/" id="titleLink"><img src="/logo.{svgFiletype}" alt="logo" id="logo"><h1 id="title">{appName}</h1></a>
 	</div>
 	<div id="secondary">
 		<label for="locationSelector">Location: </label>
@@ -38,9 +46,19 @@
 		display: inline-block;
 		vertical-align: middle;
 	}
+	#titleLink {
+		display: block;
+	}
+	#logo {
+		display: inline-block;
+		margin-right: 0.5em;
+		width: 2.3em;
+		vertical-align: middle;
+	}
 	#title {
-		/* Adjusts the baseline slightly so it looks better with all-lowercase text */
-		margin: -0.114em 0 0.114em;
+		display: inline-block;
+		vertical-align: middle;
+		margin: 0;
 		text-transform: lowercase;
 	}
 </style>
