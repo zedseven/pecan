@@ -3,7 +3,7 @@ use std::borrow::Cow;
 
 use chrono::Utc;
 use diesel::{
-	dsl::exists,
+	dsl::{exists, not},
 	insert_into,
 	result::OptionalExtension,
 	select,
@@ -25,7 +25,12 @@ use rocket_contrib::{
 
 use super::Routable;
 use crate::{
-	db::{models::*, schema, util::fetch_new_rowid_on, DbConn},
+	db::{
+		models::*,
+		schema,
+		util::{data_value_exists, fetch_new_rowid_on},
+		DbConn,
+	},
 	error::{Context, Error, UserError},
 	util::{gen_new_component_id, gen_new_device_id},
 };
@@ -41,7 +46,8 @@ impl Routable for DevicesApi {
 			get_device,
 			checkout_device,
 			create_device,
-			update_device
+			update_device,
+			get_data_value_exists
 		]
 	};
 }
@@ -90,6 +96,12 @@ pub struct SubmittedColumnData {
 pub struct CheckoutInfo {
 	device_id: String,
 	location_id: i32,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ValueExistsQuery {
+	device_id: Option<String>,
+	value: String,
 }
 
 /// Fetches the column definitions and locations.
@@ -408,6 +420,11 @@ pub fn update_device(
 		return Err(UserError::NotFound("Invalid location.").into());
 	}
 
+	// Technically there should be verification that duplicate values aren't being
+	// submitted here, but it's already enforced by the frontend and it's not worth
+	// the many additional queries right now
+	// The same goes for not-null values
+
 	// Fetch the device's internal ID
 	let internal_id = device_key_info
 		.filter(device_id.eq(device.as_str()))
@@ -474,4 +491,20 @@ pub fn update_device(
 
 	// Return the results
 	Ok(json!({ "deviceId": device.clone() }))
+}
+
+#[post("/valueExists/<column_id>", data = "<query>")]
+pub fn get_data_value_exists(
+	mut conn: DbConn,
+	column_id: i32,
+	query: Json<ValueExistsQuery>,
+) -> Result<JsonValue, Error> {
+	let result = data_value_exists(
+		&mut conn.0,
+		column_id,
+		query.device_id.as_deref(),
+		query.value.as_str(),
+	)?;
+
+	Ok(json!({ "exists": result }))
 }

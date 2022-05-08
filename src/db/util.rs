@@ -2,9 +2,16 @@
 //! level.
 
 // Uses
-use diesel::{select, RunQueryDsl, SqliteConnection};
+use diesel::{
+	dsl::{exists, not},
+	select,
+	ExpressionMethods,
+	QueryDsl,
+	RunQueryDsl,
+	SqliteConnection,
+};
 
-use super::functions::last_insert_rowid;
+use super::{functions::last_insert_rowid, schema};
 use crate::error::{Context, Error};
 
 /// Fetch the last-inserted `ROWID` on the connection, and ensure it's valid.
@@ -25,4 +32,25 @@ pub fn fetch_new_rowid_on(conn: &mut SqliteConnection) -> Result<i32, Error> {
 	}
 
 	Ok(new_rowid)
+}
+
+pub fn data_value_exists(
+	conn: &mut SqliteConnection,
+	column_id: i32,
+	device_opt: Option<&str>,
+	value: &str,
+) -> Result<bool, Error> {
+	use schema::{device_data::dsl::*, device_key_info::dsl::*};
+
+	let mut sub_query = device_data
+		.inner_join(device_key_info)
+		.filter(column_definition_id.eq(column_id))
+		.filter(data_value.eq(value))
+		.into_boxed();
+	if let Some(device) = device_opt {
+		sub_query = sub_query.filter(not(device_id.eq(device)));
+	}
+	select(exists(sub_query))
+		.get_result::<bool>(conn)
+		.with_context("unable to query the database for data value existence")
 }

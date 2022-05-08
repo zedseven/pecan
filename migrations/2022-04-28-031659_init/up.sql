@@ -2,6 +2,7 @@ CREATE TABLE 'column_definitions' (
 	'id' INTEGER PRIMARY KEY NOT NULL,
 	'name' TEXT NOT NULL,
 	'not_null' BOOLEAN NOT NULL DEFAULT 0,
+	'unique_values' BOOLEAN NOT NULL DEFAULT 0,
 	'show_in_main_page' BOOLEAN NOT NULL DEFAULT 1,
 	'possible_values_setting' INTEGER NOT NULL DEFAULT 1
 );

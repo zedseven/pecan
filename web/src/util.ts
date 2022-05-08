@@ -33,6 +33,9 @@ export const handleNetworkResponse = async (response: Response) => {
 	return Ok(await response.json());
 };
 
+export const getData = async (input: RequestInfo) => {
+	return fetch(input, { method: 'get' }).then(handleNetworkResponse);
+};
 export const postData = async (input: RequestInfo, data: any) => {
 	return fetch(input, {
 		method: 'post',

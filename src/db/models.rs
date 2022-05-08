@@ -15,6 +15,7 @@ pub struct ColumnDefinition<'a> {
 	pub id: i32,
 	pub name: Cow<'a, str>,
 	pub not_null: bool,
+	pub unique_values: bool,
 	pub show_in_main_page: bool,
 	pub possible_values_setting: PossibleValuesSetting,
 }
@@ -23,6 +24,7 @@ pub struct ColumnDefinition<'a> {
 pub struct ColumnDefinitionNew<'a> {
 	pub name: Cow<'a, str>,
 	pub not_null: bool,
+	pub unique_values: bool,
 	pub show_in_main_page: bool,
 	pub possible_values_setting: PossibleValuesSetting,
 }

@@ -4,7 +4,7 @@
 	import responseError from './responseError.svelte';
 	import couldntConnect from './couldntConnect.svelte';
 	import { fetchDefinitions, selectedLocation } from '../stores';
-	import { handleNetworkResponse, Ok, postData, sanitiseObjectMapToArray } from '../util';
+	import { getData, Ok, postData, sanitiseObjectMapToArray } from '../util';
 	import locationSelector from './locationSelector.svelte';
 
 	// Component Data
@@ -19,16 +19,12 @@
 		componentId: null,
 		componentType: '',
 	};
+	let deviceDataDuplicateFlags = {};
 
 	// Fetch the necessary information from the server
 	const deviceUrl = '/api/devices/get/';
 	let loadingPromise = Promise.all(
-		deviceId
-			? [
-					fetchDefinitions(),
-					fetch(deviceUrl + deviceId, { method: 'get' }).then(handleNetworkResponse),
-			  ]
-			: [fetchDefinitions()],
+		deviceId ? [fetchDefinitions(), getData(deviceUrl + deviceId)] : [fetchDefinitions()],
 	).then(async (combinedResult) => {
 		let definitionsResult = combinedResult[0];
 
@@ -44,6 +40,7 @@
 				columnDefinitionId: columnDefinition[0].id,
 				dataValue: null,
 			};
+			deviceDataDuplicateFlags[columnDefinition[0].id] = false;
 		}
 
 		// Parse the device info if there's a device ID
@@ -58,7 +55,7 @@
 		for (const deviceColumnData of deviceResult.value.deviceResults[1]) {
 			deviceData.columnData[deviceColumnData.columnDefinitionId] = {
 				columnDefinitionId: deviceColumnData.columnDefinitionId,
-				dataValue: deviceColumnData.dataValue,
+				dataValue: deviceColumnData.dataValue ? deviceColumnData.dataValue : null,
 			};
 		}
 		for (const deviceComponent of deviceResult.value.deviceComponents) {
@@ -80,14 +77,22 @@
 			components: [],
 		};
 
-		// Add the existing new component entry to the list if necessary
-		addNewComponent();
-
-		// Validate and sanitise the input data
+		// Validate the input data
 		if (!deviceData.locationId) {
 			alert('You must select the current location of the device.');
 			return;
 		}
+		for (const columnDefinition of definitions.columnDefinitions) {
+			if (deviceDataDuplicateFlags[columnDefinition[0].id]) {
+				alert("At least one of the things you've entered is a duplicate, and must be unique.");
+				return;
+			}
+		}
+
+		// Add the existing new component entry to the list if necessary
+		addNewComponent();
+
+		// Prepare and sanitise the input data
 		inputData.locationId = deviceData.locationId;
 		inputData.columnData = sanitiseObjectMapToArray(deviceData.columnData);
 		inputData.components = deviceData.components;
@@ -112,6 +117,28 @@
 		if (!newComponent.componentType) return;
 		deviceData.components = [...deviceData.components, Object.assign({}, newComponent)];
 		newComponent.componentType = '';
+	};
+
+	// Check if the newly-typed value exists in the database, and tell the user if it does
+	const ensureValueIsUnique = async (columnId, check) => {
+		if (!check) return;
+
+		// Check with the server - this feels gross, but it shouldn't actually be that bad
+		const valueExistsUrl = '/api/devices/valueExists/';
+		let existsResult = await postData(valueExistsUrl + columnId, {
+			deviceId,
+			value: deviceData.columnData[columnId].dataValue.trim(),
+		});
+
+		// Exit if there was an error
+		if (!existsResult.ok) {
+			console.log(existsResult.error);
+			return;
+		}
+
+		console.log(existsResult);
+
+		deviceDataDuplicateFlags[columnId] = existsResult.value.exists;
 	};
 </script>
 
@@ -149,39 +176,17 @@
 						</td>
 						{#each definitions.columnDefinitions as columnDefinition}
 							<td>
-								{#if columnDefinition[0].possibleValuesSetting === 1}
-									<input
-										bind:value={deviceData.columnData[columnDefinition[0].id].dataValue}
-										id="column{columnDefinition[0].id}"
-										class="maxWidth"
-										type="text"
-										placeholder={columnDefinition[0].name}
-									/>
-								{:else if columnDefinition[0].possibleValuesSetting === 2}
-									<datalist id="column{columnDefinition[0].id}List">
-										{#each columnDefinition[1] as possibleValue}
-											<option value={possibleValue.value} />
-										{/each}
-									</datalist>
-									<input
-										bind:value={deviceData.columnData[columnDefinition[0].id].dataValue}
-										id="column{columnDefinition[0].id}"
-										class="maxWidth"
-										type="text"
-										list="column{columnDefinition[0].id}List"
-										placeholder={columnDefinition[0].name}
-									/>
-								{:else if columnDefinition[0].possibleValuesSetting === 3}
+								{#if columnDefinition[0].possibleValuesSetting === 3}
 									<select
 										bind:value={deviceData.columnData[columnDefinition[0].id].dataValue}
 										id="column{columnDefinition[0].id}"
 										class="maxWidth"
+										required={columnDefinition[0].notNull}
 									>
-										<!-- TODO: Also device updates are broken -->
 										<option value={null} disabled="disabled">
 											-- {columnDefinition[0].name} --
 										</option>
-										{#if deviceId && !columnDefinition[1].some((possibleValue) => possibleValue.value === deviceData.columnData[columnDefinition[0].id].dataValue)}
+										{#if deviceId && deviceData.columnData[columnDefinition[0].id].dataValue && !columnDefinition[1].some((possibleValue) => possibleValue.value === deviceData.columnData[columnDefinition[0].id].dataValue)}
 											<option
 												value={deviceData.columnData[columnDefinition[0].id].dataValue}
 												disabled="disabled"
@@ -193,6 +198,44 @@
 											<option value={possibleValue.value}>{possibleValue.value}</option>
 										{/each}
 									</select>
+								{:else}
+									{#if columnDefinition[0].possibleValuesSetting === 2}
+										<datalist id="column{columnDefinition[0].id}List">
+											{#each columnDefinition[1] as possibleValue}
+												<option value={possibleValue.value} />
+											{/each}
+										</datalist>
+									{/if}
+									{#if deviceDataDuplicateFlags[columnDefinition[0].id]}
+										<input
+											bind:value={deviceData.columnData[columnDefinition[0].id].dataValue}
+											id="column{columnDefinition[0].id}"
+											class="maxWidth redBorder"
+											type="text"
+											required={columnDefinition[0].notNull}
+											list="column{columnDefinition[0].id}List"
+											placeholder={columnDefinition[0].name}
+											title="This value already exists!"
+											on:change={ensureValueIsUnique(
+												columnDefinition[0].id,
+												columnDefinition[0].uniqueValues,
+											)}
+										/>
+									{:else}
+										<input
+											bind:value={deviceData.columnData[columnDefinition[0].id].dataValue}
+											id="column{columnDefinition[0].id}"
+											class="maxWidth"
+											type="text"
+											required={columnDefinition[0].notNull}
+											list="column{columnDefinition[0].id}List"
+											placeholder={columnDefinition[0].name}
+											on:change={ensureValueIsUnique(
+												columnDefinition[0].id,
+												columnDefinition[0].uniqueValues,
+											)}
+										/>
+									{/if}
 								{/if}
 							</td>
 						{/each}
@@ -255,5 +298,9 @@
 <style>
 	h2 {
 		margin: 0;
+	}
+
+	.redBorder {
+		border-color: red;
 	}
 </style>
