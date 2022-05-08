@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use chrono::NaiveDateTime;
 use diesel::sql_types::{Integer, Text, Timestamp};
 
-use super::{schema::*, types::PossibleValuesSetting};
+use super::schema::*;
 
 // Models
 
@@ -17,7 +17,7 @@ pub struct ColumnDefinition<'a> {
 	pub not_null: bool,
 	pub unique_values: bool,
 	pub show_in_main_page: bool,
-	pub possible_values_setting: PossibleValuesSetting,
+	pub exclusively_possible_values: bool,
 }
 #[derive(Insertable, Debug)]
 #[diesel(table_name = column_definitions)]
@@ -26,7 +26,7 @@ pub struct ColumnDefinitionNew<'a> {
 	pub not_null: bool,
 	pub unique_values: bool,
 	pub show_in_main_page: bool,
-	pub possible_values_setting: PossibleValuesSetting,
+	pub exclusively_possible_values: bool,
 }
 #[derive(Associations, Identifiable, Queryable, Serialize, Deserialize, Debug)]
 #[diesel(table_name = column_possible_values, belongs_to(ColumnDefinition<'_>, foreign_key = column_definition_id))]

@@ -176,7 +176,7 @@
 						</td>
 						{#each definitions.columnDefinitions as columnDefinition}
 							<td>
-								{#if columnDefinition[0].possibleValuesSetting === 3}
+								{#if columnDefinition[0].exclusivelyPossibleValues}
 									<select
 										bind:value={deviceData.columnData[columnDefinition[0].id].dataValue}
 										id="column{columnDefinition[0].id}"
@@ -199,13 +199,11 @@
 										{/each}
 									</select>
 								{:else}
-									{#if columnDefinition[0].possibleValuesSetting === 2}
-										<datalist id="column{columnDefinition[0].id}List">
-											{#each columnDefinition[1] as possibleValue}
-												<option value={possibleValue.value} />
-											{/each}
-										</datalist>
-									{/if}
+									<datalist id="column{columnDefinition[0].id}List">
+										{#each columnDefinition[1] as possibleValue}
+											<option value={possibleValue.value} />
+										{/each}
+									</datalist>
 									{#if deviceDataDuplicateFlags[columnDefinition[0].id]}
 										<input
 											bind:value={deviceData.columnData[columnDefinition[0].id].dataValue}

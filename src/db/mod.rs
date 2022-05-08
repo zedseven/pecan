@@ -8,7 +8,6 @@ use rocket_contrib::database;
 pub mod functions;
 pub mod models;
 pub mod schema;
-pub mod types;
 pub mod util;
 
 /// A database connection, provided by [diesel].

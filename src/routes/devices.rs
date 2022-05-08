@@ -3,7 +3,7 @@ use std::borrow::Cow;
 
 use chrono::Utc;
 use diesel::{
-	dsl::{exists, not},
+	dsl::exists,
 	insert_into,
 	result::OptionalExtension,
 	select,
