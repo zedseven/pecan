@@ -484,22 +484,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "inv"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "diesel",
- "diesel_migrations",
- "rand",
- "rocket",
- "rocket_contrib",
- "serde",
- "serde_derive",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
 name = "iovec"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -780,6 +764,22 @@ dependencies = [
  "syn 0.15.44",
  "version_check 0.9.4",
  "yansi",
+]
+
+[[package]]
+name = "pecan"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "diesel",
+ "diesel_migrations",
+ "rand",
+ "rocket",
+ "rocket_contrib",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]

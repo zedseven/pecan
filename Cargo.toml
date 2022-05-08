@@ -1,12 +1,12 @@
 [package]
-name = "inv"
+name = "pecan"
 version = "0.1.0"
 authors = ["Zacchary Dempsey-Plante <zacc@ztdp.ca>"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/zedseven/inv"
-homepage = "https://github.com/zedseven/inv"
-description = "An inventory management system."
+repository = "https://github.com/zedseven/pecan"
+homepage = "https://github.com/zedseven/pecan"
+description = "A simple trust-based inventory-management system for tracking devices."
 
 [profile.release]
 codegen-units = 1

@@ -39,6 +39,8 @@
 		vertical-align: middle;
 	}
 	#title {
-		margin: 0;
+		/* Adjusts the baseline slightly so it looks better with all-lowercase text */
+		margin: -0.114em 0 0.114em;
+		text-transform: lowercase;
 	}
 </style>

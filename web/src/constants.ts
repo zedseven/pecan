@@ -1,1 +1,1 @@
-export const appName = 'Inv';
+export const appName = 'pecan';

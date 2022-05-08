@@ -1,4 +1,4 @@
-//! An inventory management system.
+//! A simple trust-based inventory-management system for tracking devices.
 
 // Features
 #![feature(proc_macro_hygiene, decl_macro, min_specialization)]
