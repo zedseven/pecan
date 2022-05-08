@@ -54,7 +54,7 @@
 
 	// Load the devices
 	let loadingPromise = Promise.all([fetchDefinitions(), sendSearch(null)]).then(
-		async (combinedResult) => {
+		(combinedResult) => {
 			let definitionsResult = combinedResult[0];
 			let loadResult = combinedResult[1];
 

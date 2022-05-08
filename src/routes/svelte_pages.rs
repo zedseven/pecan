@@ -8,7 +8,7 @@ pub(super) struct SveltePages;
 impl Routable for SveltePages {
 	const PATH: &'static str = "/";
 	const ROUTES: &'static dyn Fn() -> Vec<Route> =
-		&|| routes![index_page, edit_page, edit_page_with_param];
+		&|| routes![index_page, edit_page, edit_page_with_param, admin_page];
 }
 
 /// The index page.
@@ -33,4 +33,10 @@ pub fn edit_page() -> Option<NamedFile> {
 #[get("/edit/<_device>")]
 pub fn edit_page_with_param(_device: String) -> Option<NamedFile> {
 	edit_page()
+}
+
+/// The admin page.
+#[get("/admin")]
+pub fn admin_page() -> Option<NamedFile> {
+	NamedFile::open(format!("{}/admin.html", SVELTE_PATH)).ok()
 }

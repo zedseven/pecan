@@ -3,9 +3,9 @@
 	import loading from './loading.svelte';
 	import responseError from './responseError.svelte';
 	import couldntConnect from './couldntConnect.svelte';
+	import locationSelector from './locationSelector.svelte';
 	import { fetchDefinitions, selectedLocation } from '../stores';
 	import { getData, Ok, postData, sanitiseObjectMapToArray } from '../util';
-	import locationSelector from './locationSelector.svelte';
 
 	// Component Data
 	export let deviceId = null;
@@ -25,7 +25,7 @@
 	const deviceUrl = '/api/devices/get/';
 	let loadingPromise = Promise.all(
 		deviceId ? [fetchDefinitions(), getData(deviceUrl + deviceId)] : [fetchDefinitions()],
-	).then(async (combinedResult) => {
+	).then((combinedResult) => {
 		let definitionsResult = combinedResult[0];
 
 		// If there was an error, return it for processing below
@@ -253,7 +253,7 @@
 									{deviceId}-{deviceComponent.componentId}
 								</td>
 							{:else}
-								<td class="centerContents monospace">&lt;Not Submitted&gt;</td>
+								<td class="centerContents monospace noSelect smallerFont">&lt;Not Submitted&gt;</td>
 							{/if}
 							<td>
 								<input
