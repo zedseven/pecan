@@ -92,21 +92,31 @@ pub struct CheckoutInfo {
 	location_id: i32,
 }
 
-// TODO: Bad return value
 /// Fetches the column definitions and locations.
 #[get("/definitions")]
 pub fn get_definitions(mut conn: DbConn) -> Result<JsonValue, Error> {
-	use schema::{column_definitions::dsl::*, locations::dsl::*};
+	use schema::{column_definitions::dsl::*, column_possible_values::dsl::*, locations::dsl::*};
 
 	let column_definition_results = column_definitions
 		.load::<ColumnDefinition>(&mut conn.0)
 		.with_context("unable to load the column definitions")?;
 
+	let possible_values_results = ColumnPossibleValue::belonging_to(&column_definition_results)
+		.order_by(value)
+		.load::<ColumnPossibleValue>(&mut conn.0)
+		.with_context("unable to load the column possible values")?
+		.grouped_by(&column_definition_results);
+
+	let column_results = column_definition_results
+		.into_iter()
+		.zip(possible_values_results)
+		.collect::<Vec<_>>();
+
 	let location_results = locations
 		.load::<LocationDefinition>(&mut conn.0)
-		.with_context("unable to load the column definitions")?;
+		.with_context("unable to load the locations")?;
 
-	Ok(json!({ "columnDefinitions": column_definition_results, "locations": location_results }))
+	Ok(json!({ "columnDefinitions": column_results, "locations": location_results }))
 }
 
 /// Fetches a device by ID.
@@ -151,19 +161,11 @@ pub fn search_devices(
 	mut conn: DbConn,
 	search_query: Json<SubmittedSearchQuery>,
 ) -> Result<JsonValue, Error> {
-	// Uses
-	use schema::column_definitions::dsl::*;
-
 	// Check if any column values were specified for searching
 	let search_column_data_is_present = search_query
 		.column_data
 		.iter()
 		.any(|column| !column.data_value.is_empty());
-
-	// Fetch the column definitions
-	let column_definition_results = column_definitions
-		.load::<ColumnDefinition>(&mut conn.0)
-		.with_context("unable to load the column definitions")?;
 
 	// Search the device key info
 	// This whole thing is *extremely* ugly. This is because Diesel doesn't support
@@ -245,7 +247,7 @@ pub fn search_devices(
 		.collect::<Vec<_>>();
 
 	// Return the results
-	Ok(json!({ "columnDefinitions": column_definition_results, "deviceResults": device_results }))
+	Ok(json!({ "deviceResults": device_results }))
 }
 
 #[post("/checkout", data = "<checkout_info>")]

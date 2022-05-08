@@ -6,4 +6,6 @@ DROP TABLE 'device_key_info';
 
 DROP TABLE 'locations';
 
+DROP TABLE 'column_possible_values';
+
 DROP TABLE 'column_definitions';

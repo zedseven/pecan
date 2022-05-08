@@ -7,12 +7,9 @@ use rocket_contrib::database;
 // Modules
 pub mod functions;
 pub mod models;
+pub mod schema;
+pub mod types;
 pub mod util;
-
-#[rustfmt::skip]
-pub mod schema {
-	include!("schema.rs");
-}
 
 /// A database connection, provided by [diesel].
 #[database("sqlite_database")]

@@ -1,6 +1,16 @@
 CREATE TABLE 'column_definitions' (
 	'id' INTEGER PRIMARY KEY NOT NULL,
-	'name' TEXT NOT NULL
+	'name' TEXT NOT NULL,
+	'not_null' BOOLEAN NOT NULL DEFAULT 0,
+	'show_in_main_page' BOOLEAN NOT NULL DEFAULT 1,
+	'possible_values_setting' INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE 'column_possible_values' (
+	'id' INTEGER PRIMARY KEY NOT NULL,
+	'column_definition_id' INTEGER NOT NULL,
+	'value' TEXT NOT NULL,
+	FOREIGN KEY ('column_definition_id') REFERENCES 'column_definitions'('id')
 );
 
 CREATE TABLE 'locations' (
@@ -12,7 +22,7 @@ CREATE TABLE 'device_key_info' (
 	'id' INTEGER PRIMARY KEY NOT NULL,
 	'device_id' TEXT NOT NULL UNIQUE,
 	'location_id' INTEGER NOT NULL,
-	'last_updated' TEXT NOT NULL,
+	'last_updated' TIMESTAMP NOT NULL,
 	FOREIGN KEY ('location_id') REFERENCES 'locations'('id')
 );
 

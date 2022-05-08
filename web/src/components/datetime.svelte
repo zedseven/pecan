@@ -9,4 +9,4 @@
 	};
 </script>
 
-<time datetime={datetimeUtc} title="Local Time">{renderDatetime(datetimeUtc)}</time>
+<time datetime={datetimeUtc} title={datetimeUtc}>{renderDatetime(datetimeUtc)}</time>

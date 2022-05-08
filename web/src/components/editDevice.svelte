@@ -22,26 +22,33 @@
 
 	// Fetch the necessary information from the server
 	const deviceUrl = '/api/devices/get/';
-	let loadingPromise = fetchDefinitions().then(async (definitionsResult) => {
+	let loadingPromise = Promise.all(
+		deviceId
+			? [
+					fetchDefinitions(),
+					fetch(deviceUrl + deviceId, { method: 'get' }).then(handleNetworkResponse),
+			  ]
+			: [fetchDefinitions()],
+	).then(async (combinedResult) => {
+		let definitionsResult = combinedResult[0];
+
 		// If there was an error, return it for processing below
 		if (!definitionsResult.ok) return definitionsResult;
 
-		// Store the result
+		// Store the definitions
 		definitions = definitionsResult.value;
 
 		// Set up the deviceData for binding
 		for (const columnDefinition of definitions.columnDefinitions) {
-			deviceData.columnData[columnDefinition.id] = {
-				columnDefinitionId: columnDefinition.id,
+			deviceData.columnData[columnDefinition[0].id] = {
+				columnDefinitionId: columnDefinition[0].id,
 				dataValue: null,
 			};
 		}
 
-		// Load the device info if there's a device ID to load
+		// Parse the device info if there's a device ID
 		if (!deviceId) return Ok({});
-		let deviceResult = await fetch(deviceUrl + deviceId, { method: 'get' }).then(
-			handleNetworkResponse,
-		);
+		let deviceResult = combinedResult[1];
 
 		// If an error was encountered when fetching the device info, that takes precedence
 		if (!deviceResult.ok) return deviceResult;
@@ -119,9 +126,13 @@
 						{#if deviceId}
 							<th>Device ID</th>
 						{/if}
-						<th><label for="location">Location</label></th>
+						<th><label for="location" class="block">Location</label></th>
 						{#each definitions.columnDefinitions as columnDefinition}
-							<th><label for="column{columnDefinition.id}">{columnDefinition.name}</label></th>
+							<th>
+								<label for="column{columnDefinition[0].id}" class="block">
+									{columnDefinition[0].name}
+								</label>
+							</th>
 						{/each}
 					</tr>
 					<tr>
@@ -138,12 +149,51 @@
 						</td>
 						{#each definitions.columnDefinitions as columnDefinition}
 							<td>
-								<input
-									id="column{columnDefinition.id}"
-									type="text"
-									placeholder={columnDefinition.name}
-									bind:value={deviceData.columnData[columnDefinition.id].dataValue}
-								/>
+								{#if columnDefinition[0].possibleValuesSetting === 1}
+									<input
+										bind:value={deviceData.columnData[columnDefinition[0].id].dataValue}
+										id="column{columnDefinition[0].id}"
+										class="maxWidth"
+										type="text"
+										placeholder={columnDefinition[0].name}
+									/>
+								{:else if columnDefinition[0].possibleValuesSetting === 2}
+									<datalist id="column{columnDefinition[0].id}List">
+										{#each columnDefinition[1] as possibleValue}
+											<option value={possibleValue.value} />
+										{/each}
+									</datalist>
+									<input
+										bind:value={deviceData.columnData[columnDefinition[0].id].dataValue}
+										id="column{columnDefinition[0].id}"
+										class="maxWidth"
+										type="text"
+										list="column{columnDefinition[0].id}List"
+										placeholder={columnDefinition[0].name}
+									/>
+								{:else if columnDefinition[0].possibleValuesSetting === 3}
+									<select
+										bind:value={deviceData.columnData[columnDefinition[0].id].dataValue}
+										id="column{columnDefinition[0].id}"
+										class="maxWidth"
+									>
+										<!-- TODO: Also device updates are broken -->
+										<option value={null} disabled="disabled">
+											-- {columnDefinition[0].name} --
+										</option>
+										{#if deviceId && !columnDefinition[1].some((possibleValue) => possibleValue.value === deviceData.columnData[columnDefinition[0].id].dataValue)}
+											<option
+												value={deviceData.columnData[columnDefinition[0].id].dataValue}
+												disabled="disabled"
+											>
+												{deviceData.columnData[columnDefinition[0].id].dataValue}
+											</option>
+										{/if}
+										{#each columnDefinition[1] as possibleValue}
+											<option value={possibleValue.value}>{possibleValue.value}</option>
+										{/each}
+									</select>
+								{/if}
 							</td>
 						{/each}
 					</tr>
@@ -152,7 +202,7 @@
 				<h2>Components</h2>
 				<table>
 					<tr>
-						<th>ID</th>
+						<th>Component ID</th>
 						<th>Component</th>
 					</tr>
 					{#each deviceData.components as deviceComponent}
@@ -166,10 +216,10 @@
 							{/if}
 							<td>
 								<input
+									bind:value={deviceComponent.componentType}
 									id="component{deviceComponent.componentId}Type"
 									type="text"
 									placeholder="Component Type"
-									bind:value={deviceComponent.componentType}
 								/>
 							</td>
 						</tr>
@@ -178,10 +228,10 @@
 						<td><button on:click={addNewComponent} class="maxWidth">Add to List</button></td>
 						<td>
 							<input
+								bind:value={newComponent.componentType}
 								id="newComponentType"
 								type="text"
 								placeholder="Component Type"
-								bind:value={newComponent.componentType}
 							/>
 						</td>
 					</tr>
@@ -197,6 +247,13 @@
 			<svelte:component this={responseError} error={loadingResult.error} />
 		{/if}
 	{:catch}
+		{@debug loadingPromise}
 		<svelte:component this={couldntConnect} />
 	{/await}
 </div>
+
+<style>
+	h2 {
+		margin: 0;
+	}
+</style>

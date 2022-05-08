@@ -8,10 +8,11 @@
 	import datetime from '../components/datetime.svelte';
 	import checkoutButton from '../components/checkoutButton.svelte';
 	import locationSelector from '../components/locationSelector.svelte';
-	import { handleNetworkResponse, Ok, postData, sanitiseObjectMapToArray } from '../util';
+	import { fetchDefinitions } from '../stores';
+	import { Ok, postData, sanitiseObjectMapToArray } from '../util';
 
 	// Component Data
-	let columnDefinitions;
+	let definitions;
 	let deviceResults;
 	let searchData = {
 		deviceId: '',
@@ -27,7 +28,7 @@
 			columnData: [],
 		};
 
-		if (data != null) {
+		if (data) {
 			inputData.deviceId = data.deviceId;
 			inputData.locationId = data.locationId ? data.locationId : null;
 			inputData.columnData = sanitiseObjectMapToArray(data.columnData);
@@ -39,7 +40,6 @@
 			if (!searchResult.ok) return searchResult;
 
 			// Store the results
-			columnDefinitions = searchResult.value.columnDefinitions;
 			deviceResults = searchResult.value.deviceResults;
 
 			return searchResult;
@@ -53,20 +53,29 @@
 	};
 
 	// Load the devices
-	let loadingPromise = sendSearch(null).then(async (queryResult) => {
-		// If there was an error, return it for processing below
-		if (!queryResult.ok) return queryResult;
+	let loadingPromise = Promise.all([fetchDefinitions(), sendSearch(null)]).then(
+		async (combinedResult) => {
+			let definitionsResult = combinedResult[0];
+			let loadResult = combinedResult[1];
 
-		// Set up the searchData for binding
-		for (const columnDefinition of columnDefinitions) {
-			searchData.columnData[columnDefinition.id] = {
-				columnDefinitionId: columnDefinition.id,
-				dataValue: null,
-			};
-		}
+			// If there was an error with either query, return it for processing below
+			if (!definitionsResult.ok) return definitionsResult;
+			if (!loadResult.ok) return loadResult;
 
-		return Ok({});
-	});
+			// Store the definitions
+			definitions = definitionsResult.value;
+
+			// Set up the searchData for binding
+			for (const columnDefinition of definitions.columnDefinitions) {
+				searchData.columnData[columnDefinition[0].id] = {
+					columnDefinitionId: columnDefinition[0].id,
+					dataValue: null,
+				};
+			}
+
+			return Ok({});
+		},
+	);
 </script>
 
 <svelte:head>
@@ -84,13 +93,13 @@
 			<form on:submit|preventDefault={onSearch} method="post">
 				<table>
 					<tr class="headerRow">
-						<th colspan="2">Last Updated</th>
+						<th colspan="2">Last-Updated</th>
 						<th><label for="filterDeviceId" class="block">Device ID</label></th>
 						<th><label for="filterLocation" class="block">Location</label></th>
-						{#each columnDefinitions as columnDefinition}
+						{#each definitions.columnDefinitions as columnDefinition}
 							<th>
-								<label for="filterColumn{columnDefinition.id}" class="block">
-									{columnDefinition.name}
+								<label for="filterColumn{columnDefinition[0].id}" class="block">
+									{columnDefinition[0].name}
 								</label>
 							</th>
 						{/each}
@@ -116,14 +125,14 @@
 								disableEmptyValue={false}
 							/>
 						</td>
-						{#each columnDefinitions as columnDefinition}
+						{#each definitions.columnDefinitions as columnDefinition}
 							<td>
 								<svelte:component
 									this={searchBar}
-									bind:value={searchData.columnData[columnDefinition.id].dataValue}
-									id="filterColumn{columnDefinition.id}"
+									bind:value={searchData.columnData[columnDefinition[0].id].dataValue}
+									id="filterColumn{columnDefinition[0].id}"
 									className="maxWidth"
-									placeholder="Filter by {columnDefinition.name}"
+									placeholder="Filter by {columnDefinition[0].name}"
 								/>
 							</td>
 						{/each}
@@ -158,6 +167,7 @@
 			<svelte:component this={responseError} error={loadingResult.error} />
 		{/if}
 	{:catch}
+		{@debug loadingPromise}
 		<svelte:component this={couldntConnect} />
 	{/await}
 </div>

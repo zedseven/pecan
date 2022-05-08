@@ -5,20 +5,17 @@ body {
     font-size: 1.1em;
 }
 
-a {
+a, a:hover, a:active, a:visited {
     color: steelblue;
+}
+a {
     text-decoration: none;
 }
 a:hover {
-    color: steelblue;
     text-decoration: underline;
 }
 a:active {
-    color: steelblue;
     font-weight: bold;
-}
-a:visited {
-    color: steelblue;
 }
 .altLink, .altLink:hover, .altLink:active, .altLink:visited {
     color: teal;
@@ -36,6 +33,7 @@ td {
     text-align: center;
 }
 .maxWidth {
+    box-sizing: border-box;
     width: 100%;
 }
 .monospace {

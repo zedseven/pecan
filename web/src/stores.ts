@@ -32,6 +32,7 @@ export const fetchDefinitions = async () => {
 				if (responseData.ok) {
 					definitions.set(responseData.value);
 				}
+				// console.log(responseData);
 				return responseData;
 			});
 	return fetchDefinitionsPromise;
