@@ -204,36 +204,23 @@
 											<option value={possibleValue.value} />
 										{/each}
 									</datalist>
-									{#if deviceDataDuplicateFlags[columnDefinition[0].id]}
-										<input
-											bind:value={deviceData.columnData[columnDefinition[0].id].dataValue}
-											id="column{columnDefinition[0].id}"
-											class="maxWidth redBorder"
-											type="text"
-											required={columnDefinition[0].notNull}
-											list="column{columnDefinition[0].id}List"
-											placeholder={columnDefinition[0].name}
-											title="This value already exists!"
-											on:change={ensureValueIsUnique(
-												columnDefinition[0].id,
-												columnDefinition[0].uniqueValues,
-											)}
-										/>
-									{:else}
-										<input
-											bind:value={deviceData.columnData[columnDefinition[0].id].dataValue}
-											id="column{columnDefinition[0].id}"
-											class="maxWidth"
-											type="text"
-											required={columnDefinition[0].notNull}
-											list="column{columnDefinition[0].id}List"
-											placeholder={columnDefinition[0].name}
-											on:change={ensureValueIsUnique(
-												columnDefinition[0].id,
-												columnDefinition[0].uniqueValues,
-											)}
-										/>
-									{/if}
+									<input
+										bind:value={deviceData.columnData[columnDefinition[0].id].dataValue}
+										id="column{columnDefinition[0].id}"
+										class="maxWidth"
+										type="text"
+										required={columnDefinition[0].notNull}
+										list="column{columnDefinition[0].id}List"
+										placeholder={columnDefinition[0].name}
+										class:redBorder={deviceDataDuplicateFlags[columnDefinition[0].id]}
+										title={deviceDataDuplicateFlags[columnDefinition[0].id]
+											? 'This value already exists!'
+											: ''}
+										on:change={ensureValueIsUnique(
+											columnDefinition[0].id,
+											columnDefinition[0].uniqueValues,
+										)}
+									/>
 								{/if}
 							</td>
 						{/each}
