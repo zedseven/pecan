@@ -97,11 +97,13 @@
 						<th><label for="filterDeviceId" class="block">Device ID</label></th>
 						<th><label for="filterLocation" class="block">Location</label></th>
 						{#each definitions.columnDefinitions as columnDefinition}
-							<th>
-								<label for="filterColumn{columnDefinition[0].id}" class="block">
-									{columnDefinition[0].name}
-								</label>
-							</th>
+							{#if columnDefinition[0].showInMainPage}
+								<th>
+									<label for="filterColumn{columnDefinition[0].id}" class="block">
+										{columnDefinition[0].name}
+									</label>
+								</th>
+							{/if}
 						{/each}
 					</tr>
 					<tr class="headerRow">
@@ -111,8 +113,8 @@
 								this={searchBar}
 								bind:value={searchData.deviceId}
 								id="filterDeviceId"
-								className="maxWidth"
-								placeholder="Filter by Device ID"
+								className="searchInput"
+								placeholder="Device ID"
 							/>
 						</td>
 						<td>
@@ -120,21 +122,23 @@
 								this={locationSelector}
 								bind:value={searchData.locationId}
 								id="filterLocation"
-								className="maxWidth"
-								emptyValueLabel="-- Filter by Location --"
+								className="searchInput"
+								emptyValueLabel="-- Location --"
 								disableEmptyValue={false}
 							/>
 						</td>
 						{#each definitions.columnDefinitions as columnDefinition}
-							<td>
-								<svelte:component
-									this={searchBar}
-									bind:value={searchData.columnData[columnDefinition[0].id].dataValue}
-									id="filterColumn{columnDefinition[0].id}"
-									className="maxWidth"
-									placeholder="Filter by {columnDefinition[0].name}"
-								/>
-							</td>
+							{#if columnDefinition[0].showInMainPage}
+								<td>
+									<svelte:component
+										this={searchBar}
+										bind:value={searchData.columnData[columnDefinition[0].id].dataValue}
+										id="filterColumn{columnDefinition[0].id}"
+										className="searchInput"
+										placeholder="{columnDefinition[0].name}"
+									/>
+								</td>
+							{/if}
 						{/each}
 					</tr>
 					{#each deviceResults as deviceResult}
@@ -156,8 +160,10 @@
 								</a>
 							</td>
 							<td>{deviceResult[0].location}</td>
-							{#each deviceResult[1] as columnValue}
-								<td>{columnValue.dataValue}</td>
+							{#each deviceResult[1] as columnValue, index}
+								{#if definitions.columnDefinitions[index][0].showInMainPage}
+									<td>{columnValue.dataValue}</td>
+								{/if}
 							{/each}
 						</tr>
 					{/each}
@@ -182,5 +188,10 @@
 	}
 	#searchButton {
 		width: 100%;
+	}
+	:global(.searchInput) {
+		box-sizing: border-box;
+		width: 6em;
+		min-width: 100%;
 	}
 </style>

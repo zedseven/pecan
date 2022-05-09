@@ -30,7 +30,7 @@
 
 	/* Adds slightly more space between neighbouring columns' text */
 	td {
-		padding: 1px 2px;
+		padding: 1px 4px;
 	}
 
 	.block {

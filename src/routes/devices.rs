@@ -125,6 +125,7 @@ pub fn get_definitions(mut conn: DbConn) -> Result<JsonValue, Error> {
 		.collect::<Vec<_>>();
 
 	let location_results = locations
+		.order_by(schema::locations::dsl::name)
 		.load::<LocationDefinition>(&mut conn.0)
 		.with_context("unable to load the locations")?;
 
