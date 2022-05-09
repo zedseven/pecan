@@ -33,9 +33,18 @@
 
 <style>
 	#navBar {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		box-sizing: border-box;
+		height: 60px;
 		padding: 10px;
 		color: #ffffff;
 		background-color: #222222;
+	}
+	:global(#content) {
+		margin-top: 60px; /* Matching the height of #navBar */
 	}
 	#primary {
 		display: inline-block;
