@@ -108,9 +108,9 @@
 							>
 						</td>
 					</tr>
-					<tr title="This is the label position, from top left to bottom right.">
+					<tr title="The label position, from top left to bottom right.">
 						<td>
-							<label for="printSettingLabelSlot" class="block">Slot:</label>
+							<label for="printSettingLabelSlot" class="block">Position:</label>
 						</td>
 						<td>
 							<label for="printSettingLabelSlot" class="block">
@@ -127,13 +127,30 @@
 					</tr>
 					<tr>
 						<td>
-							<label for="printSettingLabelMargin" class="block">Margin:</label>
+							<label for="printSettingLabelMarginHorizontal" class="block">Horizontal Margin:</label
+							>
 						</td>
 						<td>
-							<label for="printSettingLabelMargin" class="block">
+							<label for="printSettingLabelMarginHorizontal" class="block">
 								<input
-									bind:value={$printSettings.labelMargin}
-									id="printSettingLabelMargin"
+									bind:value={$printSettings.labelMarginHorizontal}
+									id="printSettingLabelMarginHorizontal"
+									class="printSettingInput"
+									type="number"
+									min="0"
+								/>&nbsp;mm</label
+							>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="printSettingLabelMarginVertical" class="block">Vertical Margin:</label>
+						</td>
+						<td>
+							<label for="printSettingLabelMarginVertical" class="block">
+								<input
+									bind:value={$printSettings.labelMarginVertical}
+									id="printSettingLabelMarginVertical"
 									class="printSettingInput"
 									type="number"
 									min="0"
@@ -197,7 +214,11 @@
 					<div
 						id="label"
 						style:height={rowHeight}
-						style:padding={'' + $printSettings.labelMargin + 'mm'}
+						style:padding={'' +
+							$printSettings.labelMarginVertical +
+							'mm ' +
+							$printSettings.labelMarginHorizontal +
+							'mm'}
 						style:font-size={'' + $printSettings.fontSize + 'pt'}
 					>
 						<div id="overflowContainer">
@@ -238,7 +259,7 @@
 		margin: 0.3em 0;
 	}
 	.printSettingInput {
-		width: 3em;
+		width: 3.5em;
 	}
 	#printButton {
 		width: 6em;

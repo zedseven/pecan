@@ -10,7 +10,8 @@
 	button {
 		box-sizing: border-box;
 	}
-	button {
+	button,
+	input[type='submit'] {
 		cursor: pointer;
 	}
 

@@ -15,7 +15,8 @@ const defaultPrintSettings = {
 	horizontalLabelCount: 2,
 	verticalLabelCount: 3,
 	slot: 1,
-	labelMargin: 5 /* Millimetres */,
+	labelMarginHorizontal: 5 /* Millimetres */,
+	labelMarginVertical: 5 /* Millimetres */,
 	fontSize: 13 /* Points */,
 	borderMarkers: true,
 };
