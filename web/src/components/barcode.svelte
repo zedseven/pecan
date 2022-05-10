@@ -28,10 +28,3 @@
 </svelte:head>
 
 <svg {id} />
-
-<style lang="scss">
-	svg {
-		position: relative;
-		z-index: -1;
-	}
-</style>

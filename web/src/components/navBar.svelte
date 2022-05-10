@@ -45,6 +45,7 @@
 		top: 0;
 		left: 0;
 		right: 0;
+		z-index: 5;
 		box-sizing: border-box;
 		height: 60px;
 		padding: 10px;
