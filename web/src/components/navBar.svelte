@@ -21,10 +21,10 @@
 
 <header id="navBar" class="noSelect">
 	<div id="primary">
-		<a href="/" id="titleLink"
-			><img src="/logo.{svgFiletype}" alt="logo" id="logo" />
-			<h1 id="title">{appName}</h1></a
-		>
+		<!-- prettier-ignore -->
+		<a href="/" id="titleLink">
+			<img src="/logo.{svgFiletype}" alt="logo" id="logo" /><h1 id="title">{appName}</h1>
+		</a>
 	</div>
 	<div id="secondary">
 		<label for="locationSelector">Location: </label>

@@ -1,6 +1,11 @@
+// Imports
 import adapter from '@sveltejs/adapter-static';
 import preprocess from 'svelte-preprocess';
 
+// Constants
+const buildMode = process.env.BUILD_MODE || 'development';
+
+// Exports
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
 	compilerOptions: { enableSourcemap: true },
@@ -12,10 +17,10 @@ const config = {
 		},
 		vite: {
 			build: {
-				minify: (process.env.BUILD_MODE || 'development') !== 'development',
+				minify: buildMode !== 'development',
 				sourcemap: true,
 			},
-			mode: process.env.BUILD_MODE || 'development', // https://github.com/sveltejs/kit/issues/1258#issuecomment-874482104
+			mode: buildMode, // https://github.com/sveltejs/kit/issues/1258#issuecomment-874482104
 		},
 	},
 	preprocess: preprocess(),

@@ -1,128 +1,41 @@
-<script lang="ts">
-	// Imports
-	import loading from './loading.svelte';
-	import responseError from './responseError.svelte';
-	import couldntConnect from './couldntConnect.svelte';
-	import locationSelector from './locationSelector.svelte';
-	import { fetchDefinitions, selectedLocation } from '../stores';
-	import { getData, Ok, postData, sanitiseObjectMapToArray } from '../util';
-
+<script lang="ts" context="module">
 	// View Mode
-	enum ViewMode {
+	export enum ViewMode {
 		Edit = 0,
 		View,
 		Print,
 	}
+</script>
+
+<script lang="ts">
+	// Imports
+	import { tick } from 'svelte';
+	import { timeout } from '../util';
+	import { printSettings } from '../stores';
+	import editDeviceDetails from './editDeviceDetails.svelte';
 
 	// Component Data
 	export let deviceId = null;
 	let viewMode = ViewMode.View;
-	let definitions;
-	let deviceData = {
-		locationId: $selectedLocation, // Default to the selected location for ergonomics
-		columnData: {},
-		components: [],
-	};
-	let newComponent = {
-		componentId: null,
-		componentType: '',
-	};
-	let deviceDataDuplicateFlags = {};
-	let locationsMap = {};
+	let printSettingsVisible = false;
+	let isLoading = true;
 
-	// Fetch the necessary information from the server
-	const deviceUrl = '/api/devices/get/';
-	let loadingPromise = Promise.all(
-		deviceId ? [fetchDefinitions(), getData(deviceUrl + deviceId)] : [fetchDefinitions()],
-	).then((combinedResult) => {
-		let definitionsResult = combinedResult[0];
+	// Print the label
+	const printLabel = async () => {
+		// Set the view mode for printing (special layout)
+		viewMode = ViewMode.Print;
 
-		// If there was an error, return it for processing below
-		if (!definitionsResult.ok) return definitionsResult;
-
-		// Store the definitions
-		definitions = definitionsResult.value;
-
-		// Build the location ID -> location name map
-		for (const locationEntry of definitions.locations) {
-			locationsMap[locationEntry.id] = locationEntry.name;
+		// Wait for the re-render to be complete
+		await tick();
+		while (isLoading) {
+			await timeout(50);
 		}
 
-		// Set up the deviceData for binding
-		for (const columnDefinition of definitions.columnDefinitions) {
-			deviceData.columnData[columnDefinition[0].id] = {
-				columnDefinitionId: columnDefinition[0].id,
-				dataValue: null,
-			};
-			deviceDataDuplicateFlags[columnDefinition[0].id] = false;
-		}
+		// This blocks the whole tab until the user prints/doesn't print
+		window.print();
 
-		// Parse the device info if there's a device ID
-		if (!deviceId) return Ok({});
-		let deviceResult = combinedResult[1];
-
-		// If an error was encountered when fetching the device info, that takes precedence
-		if (!deviceResult.ok) return deviceResult;
-
-		// Set the device data based on what was loaded
-		deviceData.locationId = deviceResult.value.deviceResults[0].locationId;
-		for (const deviceColumnData of deviceResult.value.deviceResults[1]) {
-			deviceData.columnData[deviceColumnData.columnDefinitionId] = {
-				columnDefinitionId: deviceColumnData.columnDefinitionId,
-				dataValue: deviceColumnData.dataValue ? deviceColumnData.dataValue : null,
-			};
-		}
-		for (const deviceComponent of deviceResult.value.deviceComponents) {
-			deviceData.components.push({
-				componentId: deviceComponent.componentId,
-				componentType: deviceComponent.componentType,
-			});
-		}
-
-		return Ok({});
-	});
-
-	// Submit the data
-	const onSubmit = async (event) => {
-		event.preventDefault();
-		let inputData = {
-			locationId: null,
-			columnData: [],
-			components: [],
-		};
-
-		// Validate the input data
-		if (!deviceData.locationId) {
-			alert('You must select the current location of the device.');
-			return;
-		}
-		for (const columnDefinition of definitions.columnDefinitions) {
-			if (deviceDataDuplicateFlags[columnDefinition[0].id]) {
-				alert("At least one of the things you've entered is a duplicate, and must be unique.");
-				return;
-			}
-		}
-
-		// Add the existing new component entry to the list if necessary
-		addNewComponent();
-
-		// Prepare and sanitise the input data
-		inputData.locationId = deviceData.locationId;
-		inputData.columnData = sanitiseObjectMapToArray(deviceData.columnData);
-		inputData.components = deviceData.components;
-
-		// Push it to the server
-		const addDeviceUrl = '/api/devices/create';
-		const updateDeviceUrl = '/api/devices/update/';
-		const url = deviceId ? updateDeviceUrl + deviceId : addDeviceUrl;
-		let pushResult = await postData(url, inputData);
-
-		console.log(pushResult);
-
-		// Redirect/refresh if successful
-		if (pushResult.ok) {
-			window.location = '/edit/' + pushResult.value.deviceId;
-		}
+		// Reset the view mode
+		viewMode = ViewMode.View;
 	};
 
 	// Simply toggles the view mode on and off
@@ -130,221 +43,218 @@
 		viewMode = viewMode ? ViewMode.Edit : ViewMode.View;
 	};
 
-	// Add a new component to the list
-	const addNewComponent = (event = undefined) => {
-		if (event) event.preventDefault();
-		if (!newComponent.componentType) return;
-		deviceData.components = [...deviceData.components, Object.assign({}, newComponent)];
-		newComponent.componentType = '';
+	// Simply toggles the print settings on and off
+	const togglePrintSettings = () => {
+		printSettingsVisible = !printSettingsVisible;
 	};
 
-	// Check if the newly-typed value exists in the database, and tell the user if it does
-	const ensureValueIsUnique = async (columnId, check) => {
-		if (!check) return;
-
-		// Check with the server - this feels gross, but it shouldn't actually be that bad
-		const valueExistsUrl = '/api/devices/valueExists/';
-		let existsResult = await postData(valueExistsUrl + columnId, {
-			deviceId,
-			value: deviceData.columnData[columnId].dataValue.trim(),
-		});
-
-		// Exit if there was an error
-		if (!existsResult.ok) {
-			console.log(existsResult.error);
-			return;
-		}
-
-		console.log(existsResult);
-
-		deviceDataDuplicateFlags[columnId] = existsResult.value.exists;
-	};
-
-	// Utility function to display a value as empty if it's null
-	const emptyIfNull = (value) => {
-		return value != null ? value : '';
-	};
+	$: slotIndex = $printSettings.slot - 1;
+	$: rowsBeforeSlot = Math.floor(slotIndex / $printSettings.horizontalLabelCount);
+	$: columnsBeforeSlot = slotIndex % $printSettings.horizontalLabelCount;
+	$: rowHeight = '' + 99.0 / $printSettings.verticalLabelCount + 'vh'; // There's the tiniest overflow for some stupid reason when using 100vh as the base measurement
 </script>
 
 <div id="content">
-	{#await loadingPromise}
-		<svelte:component this={loading} />
-	{:then loadingResult}
-		{#if loadingResult.ok}
-			<button id="viewModeToggle" class="unprintable" on:click={toggleViewMode}>
-				Switch to {viewMode ? 'Edit Mode' : 'View Mode'}
-			</button>
-			<br class="unprintable" /><br class="unprintable" />
-			<form on:submit|preventDefault={onSubmit} method="post">
-				<table id="mainDetails">
-					{#if deviceId}
-						<tr>
-							<td class="noSelect">Device ID: </td>
-							<td class="monospace detailEntry">{deviceId}</td>
-						</tr>
-					{/if}
+	<div id="pageSettings" class="unprintable">
+		<button id="viewModeToggle" on:click={toggleViewMode}>
+			Switch to {viewMode ? 'Edit Mode' : 'View Mode'}
+		</button>
+		<button id="printSettingsToggle" on:click={togglePrintSettings}>
+			{printSettingsVisible ? 'Hide' : 'Show'} Print Settings
+		</button>
+		{#if printSettingsVisible}
+			<div id="printSettings">
+				<table>
 					<tr>
-						<td><label for="location">Location: </label></td>
 						<td>
-							{#if viewMode}
-								<span class="detailEntry">{locationsMap[deviceData.locationId]}</span>
-							{:else}
-								<svelte:component
-									this={locationSelector}
-									bind:value={deviceData.locationId}
-									id="location"
-									className="detailEntry detailInput"
-									required={true}
-								/>
-							{/if}
+							<label for="printSettingHorizontalLabelCount" class="block">Labels:</label>
+						</td>
+						<td>
+							<label for="printSettingVerticalLabelCount" class="block">
+								<input
+									bind:value={$printSettings.horizontalLabelCount}
+									id="printSettingHorizontalLabelCount"
+									class="printSettingInput"
+									type="number"
+									min="1"
+									max="4"
+									placeholder="H"
+								/>&nbsp;&times;&nbsp;<input
+									bind:value={$printSettings.verticalLabelCount}
+									id="printSettingVerticalLabelCount"
+									class="printSettingInput"
+									type="number"
+									min="1"
+									max="4"
+									placeholder="V"
+								/></label
+							>
 						</td>
 					</tr>
-					{#each definitions.columnDefinitions as columnDefinition}
-						<tr class:unprintable={!columnDefinition[0].showOnLabels}>
-							<td>
-								<label for="column{columnDefinition[0].id}">
-									{columnDefinition[0].name}:
-								</label>
-							</td>
-							<td>
-								{#if viewMode}
-									<span class="detailEntry">
-										{emptyIfNull(deviceData.columnData[columnDefinition[0].id].dataValue)}
-									</span>
-								{:else if columnDefinition[0].exclusivelyPossibleValues}
-									<select
-										bind:value={deviceData.columnData[columnDefinition[0].id].dataValue}
-										id="column{columnDefinition[0].id}"
-										class="detailEntry detailInput"
-										required={columnDefinition[0].notNull}
-									>
-										<option value={null} disabled={true}>
-											-- {columnDefinition[0].name} --
-										</option>
-										{#if deviceId && deviceData.columnData[columnDefinition[0].id].dataValue && !columnDefinition[1].some((possibleValue) => possibleValue.value === deviceData.columnData[columnDefinition[0].id].dataValue)}
-											<option
-												value={deviceData.columnData[columnDefinition[0].id].dataValue}
-												disabled={true}
-											>
-												{deviceData.columnData[columnDefinition[0].id].dataValue}
-											</option>
-										{/if}
-										{#each columnDefinition[1] as possibleValue}
-											<option value={possibleValue.value}>{possibleValue.value}</option>
-										{/each}
-									</select>
-								{:else}
-									<datalist id="column{columnDefinition[0].id}List">
-										{#each columnDefinition[1] as possibleValue}
-											<option value={possibleValue.value} />
-										{/each}
-									</datalist>
-									<input
-										bind:value={deviceData.columnData[columnDefinition[0].id].dataValue}
-										id="column{columnDefinition[0].id}"
-										class="detailEntry detailInput"
-										type="text"
-										required={columnDefinition[0].notNull}
-										list="column{columnDefinition[0].id}List"
-										placeholder={columnDefinition[0].name}
-										class:redBorder={deviceDataDuplicateFlags[columnDefinition[0].id]}
-										title={deviceDataDuplicateFlags[columnDefinition[0].id]
-											? 'This value already exists!'
-											: ''}
-										on:change={ensureValueIsUnique(
-											columnDefinition[0].id,
-											columnDefinition[0].uniqueValues,
-										)}
-									/>
-								{/if}
-							</td>
-						</tr>
-					{/each}
+					<tr>
+						<td>
+							<label for="printSettingLabelSlot" class="block">Slot:</label>
+						</td>
+						<td>
+							<label for="printSettingLabelSlot" class="block">
+								<input
+									bind:value={$printSettings.slot}
+									id="printSettingLabelSlot"
+									class="printSettingInput"
+									type="number"
+									min="1"
+									max={$printSettings.horizontalLabelCount * $printSettings.verticalLabelCount}
+								/>
+							</label>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="printSettingLabelMargin" class="block">Margin:</label>
+						</td>
+						<td>
+							<label for="printSettingLabelMargin" class="block">
+								<input
+									bind:value={$printSettings.labelMargin}
+									id="printSettingLabelMargin"
+									class="printSettingInput"
+									type="number"
+									min="0"
+								/>&nbsp;mm</label
+							>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="printSettingFontSize" class="block">Font Size:</label>
+						</td>
+						<td>
+							<label for="printSettingFontSize" class="block">
+								<input
+									bind:value={$printSettings.fontSize}
+									id="printSettingFontSize"
+									class="printSettingInput"
+									type="number"
+									min="1"
+								/>&nbsp;pt</label
+							>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="printSettingBorderMarkers" class="block">Show Boundary Guides:</label>
+						</td>
+						<td>
+							<label for="printSettingBorderMarkers" class="block">
+								<input
+									bind:checked={$printSettings.borderMarkers}
+									id="printSettingBorderMarkers"
+									type="checkbox"
+								/>
+							</label>
+						</td>
+					</tr>
 				</table>
-				<br /><br />
-				<div id="componentDetails">
-					<h2>Components</h2>
-					<table>
-						{#each deviceData.components as deviceComponent}
-							<tr>
-								{#if deviceComponent.componentId}
-									<td>
-										<span class="monospace">{deviceId}-{deviceComponent.componentId}</span>:
-									</td>
-								{:else}
-									<td>
-										<span class="monospace noSelect smallerFont">&lt;Not Submitted&gt;</span>:
-									</td>
-								{/if}
-								<td>
-									{#if viewMode}
-										<span class="detailEntry">
-											{emptyIfNull(deviceComponent.componentType)}
-										</span>
-									{:else}
-										<input
-											bind:value={deviceComponent.componentType}
-											id="component{deviceComponent.componentId}Type"
-											class="detailEntry detailInput"
-											type="text"
-											placeholder="Component Type"
-										/>
-									{/if}
-								</td>
-							</tr>
-						{/each}
-						{#if !viewMode}
-							<tr>
-								<td><button on:click={addNewComponent} class="maxWidth">Add to List</button></td>
-								<td>
-									<input
-										bind:value={newComponent.componentType}
-										id="newComponentType"
-										class="detailEntry detailInput"
-										type="text"
-										placeholder="Component Type"
-									/>
-								</td>
-							</tr>
-						{/if}
-					</table>
-				</div>
-				{#if !viewMode}
-					<br />
-					<input type="submit" value={deviceId ? 'Update' : 'Add'} />
-				{/if}
-			</form>
-		{:else}
-			<svelte:component this={responseError} error={loadingResult.error} />
+				<button id="printButton" on:click={printLabel}>Print</button>
+			</div>
 		{/if}
-	{:catch}
-		{@debug loadingPromise}
-		<svelte:component this={couldntConnect} />
-	{/await}
+		<br /><br />
+	</div>
+	{#if viewMode !== ViewMode.Print}
+		<svelte:component this={editDeviceDetails} bind:deviceId bind:viewMode bind:isLoading />
+	{:else}
+		<table id="labelPrintTable" class:borderMarkers={$printSettings.borderMarkers}>
+			<!-- Pad the area with empty rows before the display slot-->
+			{#each Array(rowsBeforeSlot) as _}
+				<tr class="noHoverDarken" style:height={rowHeight}>
+					{#each Array($printSettings.horizontalLabelCount) as _}
+						<td />
+					{/each}
+				</tr>
+			{/each}
+			<tr class="noHoverDarken">
+				<!-- Pad the area with empty columns before the display slot -->
+				{#each Array(columnsBeforeSlot) as _}
+					<td />
+				{/each}
+				<td>
+					<div
+						id="label"
+						style:height={rowHeight}
+						style:padding={'' + $printSettings.labelMargin + 'mm'}
+						style:font-size={'' + $printSettings.fontSize + 'pt'}
+					>
+						<div id="overflowContainer">
+							<svelte:component
+								this={editDeviceDetails}
+								bind:deviceId
+								bind:viewMode
+								bind:isLoading
+							/>
+						</div>
+					</div>
+				</td>
+				<!-- Pad the area with empty columns after the display slot -->
+				{#each Array($printSettings.horizontalLabelCount - columnsBeforeSlot - 1) as _}
+					<td />
+				{/each}
+			</tr>
+			<!-- Pad the area with empty rows after the display slot-->
+			{#each Array($printSettings.verticalLabelCount - rowsBeforeSlot - 1) as _}
+				<tr class="noHoverDarken" style:height={rowHeight}>
+					{#each Array($printSettings.horizontalLabelCount) as _}
+						<td />
+					{/each}
+				</tr>
+			{/each}
+		</table>
+	{/if}
 </div>
 
 <style lang="scss">
 	#viewModeToggle {
 		width: 12em;
 	}
-
-	#mainDetails,
-	#componentDetails {
-		display: inline-block;
-	}
-	:global {
-		/* Global because some sub-components use the classes too */
-		.detailEntry {
-			float: right;
-		}
-
-		.detailInput {
-			box-sizing: border-box;
-			width: 15em;
-		}
+	#printSettingsToggle {
+		width: 11em;
 	}
 
-	.redBorder {
-		border-color: red;
+	.printSettingInput {
+		width: 3em;
+	}
+	#printButton {
+		width: 6em;
+	}
+
+	#labelPrintTable {
+		width: 100%;
+		table-layout: fixed;
+		border-collapse: collapse;
+		page-break-inside: avoid;
+	}
+	#labelPrintTable tr,
+	#labelPrintTable td,
+	#label {
+		box-sizing: border-box;
+		margin: 0;
+		padding: 0;
+		overflow: hidden;
+	}
+	#overflowContainer {
+		width: 100%;
+		height: 100%;
+		overflow: hidden;
+	}
+	:not(.borderMarkers) td {
+		border: transparent dotted 0.5mm;
+	}
+	.borderMarkers td {
+		border: gray dotted 0.5mm;
+	}
+
+	@media print {
+		#labelPrintTable {
+			height: 100vh;
+		}
 	}
 </style>

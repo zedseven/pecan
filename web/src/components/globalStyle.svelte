@@ -6,6 +6,14 @@
 		font-size: 1.1em;
 	}
 
+	input,
+	button {
+		box-sizing: border-box;
+	}
+	button {
+		cursor: pointer;
+	}
+
 	a,
 	a:hover,
 	a:active,
@@ -27,11 +35,6 @@
 	.altLink:active,
 	.altLink:visited {
 		color: teal;
-	}
-
-	/* Adds slightly more space between neighbouring columns' text */
-	td {
-		padding: 1px 4px;
 	}
 
 	.block {
@@ -63,6 +66,9 @@
 		-ms-user-select: none;
 		user-select: none;
 	}
+	.largerFont {
+		font-size: 1.25em;
+	}
 	.slightlyLargerFont {
 		font-size: 1.05em;
 	}
@@ -77,7 +83,16 @@
 		padding: 0.6em;
 	}
 
+	tr:not(.noHoverDarken):hover {
+		background-color: #dddddd;
+	}
+
 	@media print {
+		body,
+		#content {
+			margin: 0;
+			padding: 0;
+		}
 		:global(.unprintable) {
 			display: none;
 		}

@@ -136,7 +136,7 @@ pub fn get_definitions(mut conn: DbConn) -> Result<JsonValue, Error> {
 #[get("/get/<device>")]
 pub fn get_device(mut conn: DbConn, device: String) -> Result<JsonValue, Error> {
 	// Uses
-	use schema::{device_key_info::dsl::*, locations::dsl::*};
+	use schema::{device_components::dsl::*, device_key_info::dsl::*, locations::dsl::*};
 
 	// Load from the database
 	let device_key_info_results = device_key_info
@@ -156,6 +156,7 @@ pub fn get_device(mut conn: DbConn, device: String) -> Result<JsonValue, Error> 
 		.with_context("unable to load the device data")?;
 
 	let device_component_results = DeviceComponent::belonging_to(&device_key_info_results)
+		.order_by(component_type)
 		.get_results::<DeviceComponent>(&mut conn.0)
 		.with_context("unable to load the device components")?;
 

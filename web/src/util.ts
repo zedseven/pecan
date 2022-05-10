@@ -71,3 +71,7 @@ export const sanitiseObjectMapToArray = (objectMap: Record<string, Record<string
 		}
 	});
 };
+
+export const timeout = (ms: number) => {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+};

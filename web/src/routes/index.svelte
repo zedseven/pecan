@@ -92,7 +92,7 @@
 		{#if loadingResult.ok}
 			<form on:submit|preventDefault={onSearch} method="post">
 				<table>
-					<tr class="headerRow">
+					<tr class="noHoverDarken">
 						<th colspan="2">Last-Updated</th>
 						<th><label for="filterDeviceId" class="block">Device ID</label></th>
 						<th><label for="filterLocation" class="block">Location</label></th>
@@ -106,7 +106,7 @@
 							{/if}
 						{/each}
 					</tr>
-					<tr class="headerRow">
+					<tr class="noHoverDarken">
 						<td colspan="2"><input type="submit" id="searchButton" value="Search" /></td>
 						<td>
 							<svelte:component
@@ -135,7 +135,7 @@
 										bind:value={searchData.columnData[columnDefinition[0].id].dataValue}
 										id="filterColumn{columnDefinition[0].id}"
 										className="searchInput"
-										placeholder="{columnDefinition[0].name}"
+										placeholder={columnDefinition[0].name}
 									/>
 								</td>
 							{/if}
@@ -179,8 +179,8 @@
 </div>
 
 <style>
-	tr:not(.headerRow):hover {
-		background-color: #dddddd;
+	td {
+		padding: 1px 4px;
 	}
 
 	#newDeviceLink {
@@ -190,7 +190,6 @@
 		width: 100%;
 	}
 	:global(.searchInput) {
-		box-sizing: border-box;
 		width: 6em;
 		min-width: 100%;
 	}
