@@ -17,7 +17,7 @@
 
 	// Component Data
 	export let deviceId = null;
-	let viewMode = ViewMode.View;
+	let viewMode = deviceId ? ViewMode.View : ViewMode.Edit;
 	let printSettingsVisible = false;
 	let isLoading = true;
 

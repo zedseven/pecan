@@ -17,7 +17,12 @@ fn main() {
 	println!(concat!(
 		"cargo:rerun-if-changed=",
 		env!("CARGO_MANIFEST_DIR"),
-		"/web"
+		"/web/src"
+	));
+	println!(concat!(
+		"cargo:rerun-if-changed=",
+		env!("CARGO_MANIFEST_DIR"),
+		"/web/static"
 	));
 
 	// Set the build mode for Svelte based on the Rust build mode
