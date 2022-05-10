@@ -31,6 +31,7 @@
 		while (isLoading) {
 			await timeout(50);
 		}
+		await timeout(250); // Temporary measure to ensure the barcode is rendered before printing
 
 		// This blocks the whole tab until the user prints/doesn't print
 		window.print();
