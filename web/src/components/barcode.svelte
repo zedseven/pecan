@@ -3,7 +3,7 @@
 	export let data;
 	export let id = 'barcode'; // Must be unique because it's fetched by JsBarcode
 	export let displayValue = false;
-	export let height = 20;
+	export let height = 25;
 	let libLoaded = false;
 
 	// Render the barcode

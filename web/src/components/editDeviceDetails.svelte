@@ -171,7 +171,7 @@
 			<table id="mainDetails" class:maxWidth={viewMode === ViewMode.Print}>
 				{#if deviceId}
 					<tr class="noHoverDarken">
-						<th colspan="2" class="monospace largerFont">{deviceId}</th>
+						<td colspan="2" class="centerContents monospace largerFont">{deviceId}</td>
 					</tr>
 					<tr class="noHoverDarken">
 						<th colspan="2">

@@ -178,7 +178,7 @@
 	{/await}
 </div>
 
-<style>
+<style lang="scss">
 	td {
 		padding: 1px 4px;
 	}

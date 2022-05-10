@@ -70,7 +70,7 @@
 	<button on:click={clicked}>Assign to me</button>
 {/if}
 
-<style>
+<style lang="scss">
 	button {
 		width: 9em;
 	}

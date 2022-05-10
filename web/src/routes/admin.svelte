@@ -45,7 +45,7 @@
 	{/await}
 </div>
 
-<style>
+<style lang="scss">
 	h2 {
 		margin: 0;
 	}

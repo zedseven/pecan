@@ -13,6 +13,7 @@
 	import { timeout } from '../util';
 	import { printSettings } from '../stores';
 	import editDeviceDetails from './editDeviceDetails.svelte';
+	import { appNameCased } from '../constants.js';
 
 	// Component Data
 	export let deviceId = null;
@@ -36,6 +37,14 @@
 
 		// Reset the view mode
 		viewMode = ViewMode.View;
+
+		// If the print settings are closed, then it's safe to assume the user is printing multiple times in a row
+		if (!printSettingsVisible) {
+			let newValue = $printSettings.slot + 1;
+			if (newValue > $printSettings.horizontalLabelCount * $printSettings.verticalLabelCount)
+				newValue = 1;
+			$printSettings.slot = newValue;
+		}
 	};
 
 	// Simply toggles the view mode on and off
@@ -62,8 +71,16 @@
 		<button id="printSettingsToggle" on:click={togglePrintSettings}>
 			{printSettingsVisible ? 'Hide' : 'Show'} Print Settings
 		</button>
+		<button id="printButton" on:click={printLabel}>Print</button>
 		{#if printSettingsVisible}
 			<div id="printSettings">
+				<div id="printHelp" class="smallerFont">
+					Make sure your margins are set to "None" in the browser popup.<br />
+					You may need to play with the settings below to get the labels<br />
+					to look right, but once they're set, <i>{appNameCased}</i> will remember them.<br /><br />
+					If you click the "Print" button when these settings are closed, the<br />
+					label slot will automatically move to the next so you don't have to.
+				</div>
 				<table>
 					<tr>
 						<td>
@@ -91,7 +108,7 @@
 							>
 						</td>
 					</tr>
-					<tr>
+					<tr title="This is the label position, from top left to bottom right.">
 						<td>
 							<label for="printSettingLabelSlot" class="block">Slot:</label>
 						</td>
@@ -140,7 +157,7 @@
 							>
 						</td>
 					</tr>
-					<tr>
+					<tr title="Guides that show the dividing lines between label slots.">
 						<td>
 							<label for="printSettingBorderMarkers" class="block">Show Boundary Guides:</label>
 						</td>
@@ -155,7 +172,6 @@
 						</td>
 					</tr>
 				</table>
-				<button id="printButton" on:click={printLabel}>Print</button>
 			</div>
 		{/if}
 		<br /><br />
@@ -213,12 +229,14 @@
 
 <style lang="scss">
 	#viewModeToggle {
-		width: 12em;
+		width: 11em;
 	}
 	#printSettingsToggle {
 		width: 11em;
 	}
-
+	#printHelp {
+		margin: 0.3em 0;
+	}
 	.printSettingInput {
 		width: 3em;
 	}
