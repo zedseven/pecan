@@ -1,3 +1,3 @@
-*.sql            linguist-detectable=true
-src/db/schema.rs linguist-generated=true
-web/static/lib   linguist-vendored=true
+*.sql             linguist-detectable=true
+src/db/schema.rs  linguist-generated=true
+web/static/lib/** linguist-vendored=true
