@@ -1,4 +1,4 @@
-<style global>
+<style global lang="scss">
 	body {
 		margin: 0;
 		padding: 0;
@@ -15,7 +15,8 @@
 	a {
 		text-decoration: none;
 	}
-	a:hover, a:hover > * {
+	a:hover,
+	a:hover > * {
 		text-decoration: underline;
 	}
 	a:active {
@@ -35,6 +36,9 @@
 
 	.block {
 		display: block;
+	}
+	.clear {
+		clear: both;
 	}
 	.centerContents {
 		text-align: center;
@@ -71,5 +75,11 @@
 
 	#content {
 		padding: 0.6em;
+	}
+
+	@media print {
+		:global(.unprintable) {
+			display: none;
+		}
 	}
 </style>

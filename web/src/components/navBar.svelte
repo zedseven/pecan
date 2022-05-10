@@ -6,7 +6,12 @@
 	import locationSelector from './locationSelector.svelte';
 
 	// Set the logo filetype based on SVG support
-	let svgFiletype = document.implementation.hasFeature("http://www.w3.org/TR/SVG11/feature#Image", "1.1") ? 'svg' : 'png';
+	let svgFiletype = document.implementation.hasFeature(
+		'http://www.w3.org/TR/SVG11/feature#Image',
+		'1.1',
+	)
+		? 'svg'
+		: 'png';
 </script>
 
 <svelte:head>
@@ -16,7 +21,10 @@
 
 <header id="navBar" class="noSelect">
 	<div id="primary">
-		<a href="/" id="titleLink"><img src="/logo.{svgFiletype}" alt="logo" id="logo"><h1 id="title">{appName}</h1></a>
+		<a href="/" id="titleLink"
+			><img src="/logo.{svgFiletype}" alt="logo" id="logo" />
+			<h1 id="title">{appName}</h1></a
+		>
 	</div>
 	<div id="secondary">
 		<label for="locationSelector">Location: </label>
@@ -31,7 +39,7 @@
 
 <svelte:component this={globalStyle} />
 
-<style>
+<style lang="scss">
 	#navBar {
 		position: fixed;
 		top: 0;
@@ -69,5 +77,16 @@
 		vertical-align: middle;
 		margin: 0;
 		text-transform: lowercase;
+	}
+
+	@media print {
+		:global {
+			#navBar {
+				display: none;
+			}
+			#content {
+				margin-top: 0;
+			}
+		}
 	}
 </style>

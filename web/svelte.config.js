@@ -12,7 +12,7 @@ const config = {
 		},
 		vite: {
 			build: {
-				minify: process.env.BUILD_MODE || 'development' !== 'development',
+				minify: (process.env.BUILD_MODE || 'development') !== 'development',
 				sourcemap: true,
 			},
 			mode: process.env.BUILD_MODE || 'development', // https://github.com/sveltejs/kit/issues/1258#issuecomment-874482104

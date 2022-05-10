@@ -59,9 +59,9 @@
 </script>
 
 {#if $selectedLocation === null}
-	<button disabled="disabled">Select location</button>
+	<button disabled={true}>Select location</button>
 {:else if $selectedLocation === currentLocationId}
-	<button disabled="disabled">Already assigned</button>
+	<button disabled={true}>Already assigned</button>
 {:else if clickState === ClickState.Loading}
 	<button class="loading">Loading...</button>
 {:else if clickState === ClickState.Primed}

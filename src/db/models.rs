@@ -17,6 +17,7 @@ pub struct ColumnDefinition<'a> {
 	pub not_null: bool,
 	pub unique_values: bool,
 	pub show_in_main_page: bool,
+	pub show_on_labels: bool,
 	pub exclusively_possible_values: bool,
 }
 #[derive(Insertable, Debug)]
@@ -26,6 +27,7 @@ pub struct ColumnDefinitionNew<'a> {
 	pub not_null: bool,
 	pub unique_values: bool,
 	pub show_in_main_page: bool,
+	pub show_on_labels: bool,
 	pub exclusively_possible_values: bool,
 }
 #[derive(Associations, Identifiable, Queryable, Serialize, Deserialize, Debug)]

@@ -4,6 +4,7 @@ CREATE TABLE 'column_definitions' (
 	'not_null' BOOLEAN NOT NULL DEFAULT 0,
 	'unique_values' BOOLEAN NOT NULL DEFAULT 0,
 	'show_in_main_page' BOOLEAN NOT NULL DEFAULT 1,
+	'show_on_labels' BOOLEAN NOT NULL DEFAULT 1,
 	'exclusively_possible_values' BOOLEAN NOT NULL DEFAULT 0
 );
 

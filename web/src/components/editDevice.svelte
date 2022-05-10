@@ -7,8 +7,16 @@
 	import { fetchDefinitions, selectedLocation } from '../stores';
 	import { getData, Ok, postData, sanitiseObjectMapToArray } from '../util';
 
+	// View Mode
+	enum ViewMode {
+		Edit = 0,
+		View,
+		Print,
+	}
+
 	// Component Data
 	export let deviceId = null;
+	let viewMode = ViewMode.View;
 	let definitions;
 	let deviceData = {
 		locationId: $selectedLocation, // Default to the selected location for ergonomics
@@ -20,6 +28,7 @@
 		componentType: '',
 	};
 	let deviceDataDuplicateFlags = {};
+	let locationsMap = {};
 
 	// Fetch the necessary information from the server
 	const deviceUrl = '/api/devices/get/';
@@ -33,6 +42,11 @@
 
 		// Store the definitions
 		definitions = definitionsResult.value;
+
+		// Build the location ID -> location name map
+		for (const locationEntry of definitions.locations) {
+			locationsMap[locationEntry.id] = locationEntry.name;
+		}
 
 		// Set up the deviceData for binding
 		for (const columnDefinition of definitions.columnDefinitions) {
@@ -111,6 +125,11 @@
 		}
 	};
 
+	// Simply toggles the view mode on and off
+	const toggleViewMode = () => {
+		viewMode = viewMode ? ViewMode.Edit : ViewMode.View;
+	};
+
 	// Add a new component to the list
 	const addNewComponent = (event = undefined) => {
 		if (event) event.preventDefault();
@@ -140,6 +159,11 @@
 
 		deviceDataDuplicateFlags[columnId] = existsResult.value.exists;
 	};
+
+	// Utility function to display a value as empty if it's null
+	const emptyIfNull = (value) => {
+		return value != null ? value : '';
+	};
 </script>
 
 <div id="content">
@@ -147,49 +171,60 @@
 		<svelte:component this={loading} />
 	{:then loadingResult}
 		{#if loadingResult.ok}
+			<button id="viewModeToggle" class="unprintable" on:click={toggleViewMode}>
+				Switch to {viewMode ? 'Edit Mode' : 'View Mode'}
+			</button>
+			<br class="unprintable" /><br class="unprintable" />
 			<form on:submit|preventDefault={onSubmit} method="post">
-				<table>
+				<table id="mainDetails">
+					{#if deviceId}
+						<tr>
+							<td class="noSelect">Device ID: </td>
+							<td class="monospace detailEntry">{deviceId}</td>
+						</tr>
+					{/if}
 					<tr>
-						{#if deviceId}
-							<th>Device ID</th>
-						{/if}
-						<th><label for="location" class="block">Location</label></th>
-						{#each definitions.columnDefinitions as columnDefinition}
-							<th>
-								<label for="column{columnDefinition[0].id}" class="block">
-									{columnDefinition[0].name}
-								</label>
-							</th>
-						{/each}
-					</tr>
-					<tr>
-						{#if deviceId}
-							<td class="centerContents monospace slightlyLargerFont">{deviceId}</td>
-						{/if}
+						<td><label for="location">Location: </label></td>
 						<td>
-							<svelte:component
-								this={locationSelector}
-								bind:value={deviceData.locationId}
-								id="location"
-								required={true}
-							/>
+							{#if viewMode}
+								<span class="detailEntry">{locationsMap[deviceData.locationId]}</span>
+							{:else}
+								<svelte:component
+									this={locationSelector}
+									bind:value={deviceData.locationId}
+									id="location"
+									className="detailEntry detailInput"
+									required={true}
+								/>
+							{/if}
 						</td>
-						{#each definitions.columnDefinitions as columnDefinition}
+					</tr>
+					{#each definitions.columnDefinitions as columnDefinition}
+						<tr class:unprintable={!columnDefinition[0].showOnLabels}>
 							<td>
-								{#if columnDefinition[0].exclusivelyPossibleValues}
+								<label for="column{columnDefinition[0].id}">
+									{columnDefinition[0].name}:
+								</label>
+							</td>
+							<td>
+								{#if viewMode}
+									<span class="detailEntry">
+										{emptyIfNull(deviceData.columnData[columnDefinition[0].id].dataValue)}
+									</span>
+								{:else if columnDefinition[0].exclusivelyPossibleValues}
 									<select
 										bind:value={deviceData.columnData[columnDefinition[0].id].dataValue}
 										id="column{columnDefinition[0].id}"
-										class="maxWidth"
+										class="detailEntry detailInput"
 										required={columnDefinition[0].notNull}
 									>
-										<option value={null} disabled="disabled">
+										<option value={null} disabled={true}>
 											-- {columnDefinition[0].name} --
 										</option>
 										{#if deviceId && deviceData.columnData[columnDefinition[0].id].dataValue && !columnDefinition[1].some((possibleValue) => possibleValue.value === deviceData.columnData[columnDefinition[0].id].dataValue)}
 											<option
 												value={deviceData.columnData[columnDefinition[0].id].dataValue}
-												disabled="disabled"
+												disabled={true}
 											>
 												{deviceData.columnData[columnDefinition[0].id].dataValue}
 											</option>
@@ -207,7 +242,7 @@
 									<input
 										bind:value={deviceData.columnData[columnDefinition[0].id].dataValue}
 										id="column{columnDefinition[0].id}"
-										class="maxWidth"
+										class="detailEntry detailInput"
 										type="text"
 										required={columnDefinition[0].notNull}
 										list="column{columnDefinition[0].id}List"
@@ -223,52 +258,60 @@
 									/>
 								{/if}
 							</td>
-						{/each}
-					</tr>
-				</table>
-				<br />
-				<h2>Components</h2>
-				<table>
-					<tr>
-						<th>Component ID</th>
-						<th>Component</th>
-					</tr>
-					{#each deviceData.components as deviceComponent}
-						<tr>
-							{#if deviceComponent.componentId}
-								<td class="centerContents monospace slightlyLargerFont">
-									{deviceId}-{deviceComponent.componentId}
-								</td>
-							{:else}
-								<td class="centerContents monospace noSelect smallerFont">&lt;Not Submitted&gt;</td>
-							{/if}
-							<td>
-								<input
-									bind:value={deviceComponent.componentType}
-									id="component{deviceComponent.componentId}Type"
-									type="text"
-									placeholder="Component Type"
-								/>
-							</td>
 						</tr>
 					{/each}
-					<tr>
-						<td><button on:click={addNewComponent} class="maxWidth">Add to List</button></td>
-						<td>
-							<input
-								bind:value={newComponent.componentType}
-								id="newComponentType"
-								type="text"
-								placeholder="Component Type"
-							/>
-						</td>
-					</tr>
 				</table>
-				<br />
-				{#if deviceId}
-					<input type="submit" value="Update" />
-				{:else}
-					<input type="submit" value="Add" />
+				<br /><br />
+				<div id="componentDetails">
+					<h2>Components</h2>
+					<table>
+						{#each deviceData.components as deviceComponent}
+							<tr>
+								{#if deviceComponent.componentId}
+									<td>
+										<span class="monospace">{deviceId}-{deviceComponent.componentId}</span>:
+									</td>
+								{:else}
+									<td>
+										<span class="monospace noSelect smallerFont">&lt;Not Submitted&gt;</span>:
+									</td>
+								{/if}
+								<td>
+									{#if viewMode}
+										<span class="detailEntry">
+											{emptyIfNull(deviceComponent.componentType)}
+										</span>
+									{:else}
+										<input
+											bind:value={deviceComponent.componentType}
+											id="component{deviceComponent.componentId}Type"
+											class="detailEntry detailInput"
+											type="text"
+											placeholder="Component Type"
+										/>
+									{/if}
+								</td>
+							</tr>
+						{/each}
+						{#if !viewMode}
+							<tr>
+								<td><button on:click={addNewComponent} class="maxWidth">Add to List</button></td>
+								<td>
+									<input
+										bind:value={newComponent.componentType}
+										id="newComponentType"
+										class="detailEntry detailInput"
+										type="text"
+										placeholder="Component Type"
+									/>
+								</td>
+							</tr>
+						{/if}
+					</table>
+				</div>
+				{#if !viewMode}
+					<br />
+					<input type="submit" value={deviceId ? 'Update' : 'Add'} />
 				{/if}
 			</form>
 		{:else}
@@ -280,9 +323,25 @@
 	{/await}
 </div>
 
-<style>
-	h2 {
-		margin: 0;
+<style lang="scss">
+	#viewModeToggle {
+		width: 12em;
+	}
+
+	#mainDetails,
+	#componentDetails {
+		display: inline-block;
+	}
+	:global {
+		/* Global because some sub-components use the classes too */
+		.detailEntry {
+			float: right;
+		}
+
+		.detailInput {
+			box-sizing: border-box;
+			width: 15em;
+		}
 	}
 
 	.redBorder {

@@ -24,4 +24,4 @@ for inclusion in *pecan* by you, as defined in the Apache-2.0 license,
 shall be dual licensed as above, without any additional terms or conditions.
 
 ## Attribution
-The logo is sourced from [Flaticon](https://www.flaticon.com/free-icon/pecan_2227352), made by Smashicons.
+The logo is used with permission, from [Flaticon](https://www.flaticon.com/free-icon/pecan_2227352), and made by Smashicons.
