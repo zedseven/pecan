@@ -1,5 +1,5 @@
 // Uses
-use rocket::{get, response::NamedFile, routes, Route};
+use rocket::{fs::NamedFile, get, routes, Route};
 
 use super::{Routable, SVELTE_PATH};
 
@@ -17,26 +17,32 @@ impl Routable for SveltePages {
 /// automatically append `index.html` to a directory, but it makes sense to
 /// define it here since all other pages *will* require it.
 #[get("/")]
-pub fn index_page() -> Option<NamedFile> {
-	NamedFile::open(format!("{}/index.html", SVELTE_PATH)).ok()
+pub async fn index_page() -> Option<NamedFile> {
+	NamedFile::open(format!("{}/index.html", SVELTE_PATH))
+		.await
+		.ok()
 }
 
 /// The edit page, without a parameter. (for adding new devices)
 #[get("/edit")]
-pub fn edit_page() -> Option<NamedFile> {
-	NamedFile::open(format!("{}/edit.html", SVELTE_PATH)).ok()
+pub async fn edit_page() -> Option<NamedFile> {
+	NamedFile::open(format!("{}/edit.html", SVELTE_PATH))
+		.await
+		.ok()
 }
 
 /// The edit page, with a parameter. (for editing existing devices)
 ///
 /// Svelte handles the actual parameter, so we need not worry about it here.
 #[get("/edit/<_device>")]
-pub fn edit_page_with_param(_device: String) -> Option<NamedFile> {
-	edit_page()
+pub async fn edit_page_with_param(_device: String) -> Option<NamedFile> {
+	edit_page().await
 }
 
 /// The admin page.
 #[get("/admin")]
-pub fn admin_page() -> Option<NamedFile> {
-	NamedFile::open(format!("{}/admin.html", SVELTE_PATH)).ok()
+pub async fn admin_page() -> Option<NamedFile> {
+	NamedFile::open(format!("{}/admin.html", SVELTE_PATH))
+		.await
+		.ok()
 }

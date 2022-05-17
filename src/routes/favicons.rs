@@ -1,5 +1,5 @@
 // Uses
-use rocket::{get, response::NamedFile, routes, Route};
+use rocket::{fs::NamedFile, get, routes, Route};
 
 use super::{Routable, SVELTE_PATH};
 
@@ -11,16 +11,22 @@ impl Routable for FaviconRoutes {
 }
 
 #[get("/favicon.svg")]
-pub fn icon_svg() -> Option<NamedFile> {
-	NamedFile::open(format!("{}/logo.svg", SVELTE_PATH)).ok()
+pub async fn icon_svg() -> Option<NamedFile> {
+	NamedFile::open(format!("{}/logo.svg", SVELTE_PATH))
+		.await
+		.ok()
 }
 
 #[get("/favicon.png")]
-pub fn icon_png() -> Option<NamedFile> {
-	NamedFile::open(format!("{}/logo-tiny.png", SVELTE_PATH)).ok()
+pub async fn icon_png() -> Option<NamedFile> {
+	NamedFile::open(format!("{}/logo-tiny.png", SVELTE_PATH))
+		.await
+		.ok()
 }
 
 #[get("/favicon.ico")]
-pub fn icon_ico() -> Option<NamedFile> {
-	NamedFile::open(format!("{}/favicon.ico", SVELTE_PATH)).ok()
+pub async fn icon_ico() -> Option<NamedFile> {
+	NamedFile::open(format!("{}/favicon.ico", SVELTE_PATH))
+		.await
+		.ok()
 }

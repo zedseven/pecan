@@ -1,6 +1,5 @@
 // Uses
-use rocket::{fairing::AdHoc, ignite, Rocket, Route};
-use rocket_contrib::serve::StaticFiles;
+use rocket::{build, fairing::AdHoc, fs::FileServer, Build, Rocket, Route};
 
 use crate::{
 	db::{init as init_db, DbConn},
@@ -23,10 +22,10 @@ const API_ROOT: &str = "/api";
 const SVELTE_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/web/build");
 
 /// Sets up the Rocket server.
-pub fn rocket() -> Rocket {
-	ignite()
+pub fn rocket() -> Rocket<Build> {
+	build()
 		.attach(DbConn::fairing())
-		.attach(AdHoc::on_attach("Database Setup", init_db))
+		.attach(AdHoc::on_ignite("Database Setup", init_db))
 		.mount(
 			format!("{}{}", API_ROOT, DevicesApi::PATH).as_str(),
 			DevicesApi::ROUTES(),
@@ -37,7 +36,7 @@ pub fn rocket() -> Rocket {
 		)
 		.mount(FaviconRoutes::PATH, FaviconRoutes::ROUTES())
 		.mount(SveltePages::PATH, SveltePages::ROUTES())
-		.mount("/", StaticFiles::from(SVELTE_PATH))
+		.mount("/", FileServer::from(SVELTE_PATH))
 }
 
 /// The interface that allows a set of routes to be mounted on a path.

@@ -1,7 +1,7 @@
 //! A simple trust-based inventory-management system for tracking devices.
 
 // Features
-#![feature(proc_macro_hygiene, decl_macro, min_specialization)]
+#![feature(min_specialization)]
 // Linting Rules
 #![warn(
 	clippy::complexity,
@@ -30,6 +30,7 @@
 	clippy::doc_markdown,
 	clippy::module_name_repetitions,
 	clippy::needless_pass_by_value,
+	clippy::no_effect_underscore_binding,
 	clippy::similar_names,
 	clippy::struct_excessive_bools,
 	clippy::too_many_lines,
@@ -43,6 +44,8 @@
 #[macro_use]
 extern crate diesel;
 #[macro_use]
+extern crate rocket;
+#[macro_use]
 extern crate serde_derive;
 
 // Uses
@@ -55,6 +58,7 @@ mod routes;
 mod util;
 
 // Entry Point
-fn main() {
-	rocket().launch(); // Never exits unless there's an error
+#[launch]
+fn launchpad() -> _ {
+	rocket()
 }
