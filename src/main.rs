@@ -52,8 +52,10 @@ extern crate serde_derive;
 use crate::routes::rocket;
 
 // Modules
+mod auth;
 mod db;
 mod error;
+mod id_gen;
 mod routes;
 mod util;
 

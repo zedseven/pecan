@@ -9,6 +9,23 @@ use super::schema::*;
 // Models
 
 #[derive(Identifiable, Queryable, Serialize, Deserialize, Debug)]
+#[diesel(table_name = tokens)]
+#[serde(rename_all = "camelCase")]
+pub struct Token<'a> {
+	pub id: i32,
+	pub user: Cow<'a, str>,
+	pub value: Cow<'a, str>,
+	pub expires: NaiveDateTime,
+	pub valid: bool,
+}
+#[derive(Insertable, Debug)]
+#[diesel(table_name = tokens)]
+pub struct TokenNew<'a> {
+	pub user: Cow<'a, str>,
+	pub value: Cow<'a, str>,
+	pub expires: NaiveDateTime,
+}
+#[derive(Identifiable, Queryable, Serialize, Deserialize, Debug)]
 #[diesel(table_name = column_definitions)]
 #[serde(rename_all = "camelCase")]
 pub struct ColumnDefinition<'a> {

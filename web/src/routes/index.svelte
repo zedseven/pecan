@@ -9,7 +9,7 @@
 	import checkoutButton from '../components/checkoutButton.svelte';
 	import locationSelector from '../components/locationSelector.svelte';
 	import { fetchDefinitions } from '../stores';
-	import { Ok, postData, sanitiseObjectMapToArray } from '../util';
+	import { Ok, postData, redirectIfNotLoggedIn, sanitiseObjectMapToArray } from '../util';
 
 	// Component Data
 	let definitions;
@@ -53,29 +53,31 @@
 	};
 
 	// Load the devices
-	let loadingPromise = Promise.all([fetchDefinitions(), sendSearch(null)]).then(
-		(combinedResult) => {
-			let definitionsResult = combinedResult[0];
-			let loadResult = combinedResult[1];
+	let loadingPromise = Promise.all([
+		redirectIfNotLoggedIn(),
+		fetchDefinitions(),
+		sendSearch(null),
+	]).then((combinedResult) => {
+		let definitionsResult = combinedResult[1];
+		let loadResult = combinedResult[2];
 
-			// If there was an error with either query, return it for processing below
-			if (!definitionsResult.ok) return definitionsResult;
-			if (!loadResult.ok) return loadResult;
+		// If there was an error with either query, return it for processing below
+		if (!definitionsResult.ok) return definitionsResult;
+		if (!loadResult.ok) return loadResult;
 
-			// Store the definitions
-			definitions = definitionsResult.value;
+		// Store the definitions
+		definitions = definitionsResult.value;
 
-			// Set up the searchData for binding
-			for (const columnDefinition of definitions.columnDefinitions) {
-				searchData.columnData[columnDefinition[0].id] = {
-					columnDefinitionId: columnDefinition[0].id,
-					dataValue: null,
-				};
-			}
+		// Set up the searchData for binding
+		for (const columnDefinition of definitions.columnDefinitions) {
+			searchData.columnData[columnDefinition[0].id] = {
+				columnDefinitionId: columnDefinition[0].id,
+				dataValue: null,
+			};
+		}
 
-			return Ok({});
-		},
-	);
+		return Ok({});
+	});
 </script>
 
 <svelte:head>

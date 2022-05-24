@@ -5,6 +5,7 @@ use crate::{
 	db::{init as init_db, DbConn},
 	routes::{
 		admin::AdminApi,
+		auth::AuthApi,
 		devices::DevicesApi,
 		favicons::FaviconRoutes,
 		svelte_pages::SveltePages,
@@ -13,6 +14,7 @@ use crate::{
 
 // Modules
 mod admin;
+mod auth;
 mod devices;
 mod favicons;
 mod svelte_pages;
@@ -26,6 +28,10 @@ pub fn rocket() -> Rocket<Build> {
 	build()
 		.attach(DbConn::fairing())
 		.attach(AdHoc::on_ignite("Database Setup", init_db))
+		.mount(
+			format!("{}{}", API_ROOT, AuthApi::PATH).as_str(),
+			AuthApi::ROUTES(),
+		)
 		.mount(
 			format!("{}{}", API_ROOT, DevicesApi::PATH).as_str(),
 			DevicesApi::ROUTES(),

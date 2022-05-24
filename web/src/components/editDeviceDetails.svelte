@@ -7,7 +7,7 @@
 	import { ViewMode } from './editDevice.svelte';
 	import barcode from './barcode.svelte';
 	import { fetchDefinitions, selectedLocation } from '../stores';
-	import { getData, Ok, postData, sanitiseObjectMapToArray } from '../util';
+	import { getData, Ok, postData, redirectIfNotLoggedIn, sanitiseObjectMapToArray } from '../util';
 
 	// Component Data
 	export let deviceId = null;
@@ -29,11 +29,11 @@
 	// Fetch the necessary information from the server
 	const deviceUrl = '/api/devices/get/';
 	isLoading = true;
-	export let loadingPromise = Promise.all(
-		deviceId ? [fetchDefinitions(), getData(deviceUrl + deviceId)] : [fetchDefinitions()],
-	)
+	let callList = [redirectIfNotLoggedIn(), fetchDefinitions()];
+	if (deviceId) callList.push(getData(deviceUrl + deviceId));
+	export let loadingPromise = Promise.all(callList)
 		.then((combinedResult) => {
-			let definitionsResult = combinedResult[0];
+			let definitionsResult = combinedResult[1];
 
 			// If there was an error, return it for processing below
 			if (!definitionsResult.ok) return definitionsResult;
@@ -57,7 +57,7 @@
 
 			// Parse the device info if there's a device ID
 			if (!deviceId) return Ok({});
-			let deviceResult = combinedResult[1];
+			let deviceResult = combinedResult[2];
 
 			// If an error was encountered when fetching the device info, that takes precedence
 			if (!deviceResult.ok) return deviceResult;
@@ -183,7 +183,7 @@
 					<td><label for="location">Location: </label></td>
 					<td>
 						{#if viewMode}
-							<span class="detailEntry">{locationsMap[deviceData.locationId]}</span>
+							<span class="detailEntry">{emptyIfNull(locationsMap[deviceData.locationId])}</span>
 						{:else}
 							<svelte:component
 								this={locationSelector}

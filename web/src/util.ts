@@ -75,3 +75,14 @@ export const sanitiseObjectMapToArray = (objectMap: Record<string, Record<string
 export const timeout = (ms: number) => {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 };
+
+// Verifies that the local credentials are still valid. If they aren't, it redirects to the login page.
+// There's no security issue here, as all API requests also require a valid token anyway.
+// All it does is prevent unsightly errors for the user.
+export const redirectIfNotLoggedIn = () => {
+	const loggedInCheckUrl = '/api/loggedIn';
+	const loginLocation = '/login';
+	return getData(loggedInCheckUrl).then((loggedIn) => {
+		if (!loggedIn.ok || !loggedIn.value) window.location.replace(loginLocation);
+	});
+};

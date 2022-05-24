@@ -27,6 +27,7 @@ use rocket::{
 
 use super::Routable;
 use crate::{
+	auth::AuthedUser,
 	db::{
 		models::*,
 		schema,
@@ -108,7 +109,7 @@ pub struct ValueExistsQuery {
 
 /// Fetches the column definitions and locations.
 #[get("/definitions")]
-pub async fn get_definitions(conn: DbConn) -> Result<JsonValue, Error> {
+pub async fn get_definitions(_user: &AuthedUser, conn: DbConn) -> Result<JsonValue, Error> {
 	conn.run(move |c| {
 		// Uses
 		use schema::{
@@ -145,7 +146,11 @@ pub async fn get_definitions(conn: DbConn) -> Result<JsonValue, Error> {
 
 /// Fetches a device by ID.
 #[get("/get/<device>")]
-pub async fn get_device(conn: DbConn, device: String) -> Result<JsonValue, Error> {
+pub async fn get_device(
+	_user: &AuthedUser,
+	conn: DbConn,
+	device: String,
+) -> Result<JsonValue, Error> {
 	conn.run(move |c| {
 		// Uses
 		use schema::{device_components::dsl::*, device_key_info::dsl::*, locations::dsl::*};
@@ -186,6 +191,7 @@ pub async fn get_device(conn: DbConn, device: String) -> Result<JsonValue, Error
 /// Fetches the most recently-updated `count` entries.
 #[post("/search", data = "<search_query>")]
 pub async fn search_devices(
+	_user: &AuthedUser,
 	conn: DbConn,
 	search_query: Json<SubmittedSearchQuery>,
 ) -> Result<JsonValue, Error> {
@@ -285,6 +291,7 @@ pub async fn search_devices(
 
 #[post("/checkout", data = "<checkout_info>")]
 pub async fn checkout_device(
+	_user: &AuthedUser,
 	conn: DbConn,
 	checkout_info: Json<CheckoutInfo>,
 ) -> Result<JsonValue, Error> {
@@ -333,6 +340,7 @@ pub async fn checkout_device(
 /// Adds a new device to the database.
 #[post("/create", data = "<device_info>")]
 pub async fn create_device(
+	_user: &AuthedUser,
 	conn: DbConn,
 	device_info: Json<NewDeviceInfo>,
 ) -> Result<JsonValue, Error> {
@@ -424,6 +432,7 @@ pub async fn create_device(
 /// TODO: Combine this with `create_device`.
 #[post("/update/<device>", data = "<device_info>")]
 pub async fn update_device(
+	_user: &AuthedUser,
 	conn: DbConn,
 	device: String,
 	device_info: Json<UpdatedDeviceInfo>,
@@ -523,6 +532,7 @@ pub async fn update_device(
 
 #[post("/valueExists/<column_id>", data = "<query>")]
 pub async fn get_data_value_exists(
+	_user: &AuthedUser,
 	conn: DbConn,
 	column_id: i32,
 	query: Json<ValueExistsQuery>,

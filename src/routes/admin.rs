@@ -1,5 +1,5 @@
 // Uses
-use rocket::{get, post, routes, Route};
+use rocket::{routes, Route};
 
 use super::Routable;
 
