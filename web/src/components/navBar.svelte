@@ -1,6 +1,6 @@
 <script lang="ts">
 	// Imports
-	import { appName } from '../constants';
+	import { appName, projectVersion } from '../constants';
 	import { selectedLocation } from '../stores';
 	import globalStyle from './globalStyle.svelte';
 	import locationSelector from './locationSelector.svelte';
@@ -34,6 +34,7 @@
 			id="locationSelector"
 			emptyValueLabel="-- Your Location --"
 		/>
+		<p class="headerInfo">{projectVersion}</p>
 	</div>
 </header>
 
@@ -78,6 +79,10 @@
 		vertical-align: middle;
 		margin: 0;
 		text-transform: lowercase;
+	}
+	.headerInfo {
+		display: inline-block;
+		margin: 0 2em;
 	}
 
 	@media print {

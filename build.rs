@@ -24,6 +24,11 @@ fn main() {
 		env!("CARGO_MANIFEST_DIR"),
 		"/web/static"
 	));
+	println!(concat!(
+		"cargo:rerun-if-changed=",
+		env!("CARGO_MANIFEST_DIR"),
+		"/web/svelte.config.js"
+	));
 
 	// Set the build mode for Svelte based on the Rust build mode
 	let build_mode = if cfg!(debug_assertions) {
@@ -38,6 +43,7 @@ fn main() {
 		.arg("build")
 		.current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/web"))
 		.env("BUILD_MODE", build_mode)
+		.env("PROJECT_VERSION", concat!('v', env!("CARGO_PKG_VERSION")))
 		.output()
 		.expect("failed to execute npm");
 
