@@ -1,2 +1,0 @@
-[global.databases.sqlite_database]
-url = "db.sqlite3"

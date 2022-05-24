@@ -1,0 +1,40 @@
+# Pecan Configuration
+
+# Basic Settings
+# You can leave these as they are unless you have a reason to change them.
+# For more information about possible basic settings, see: https://rocket.rs/guide/configuration/#rockettoml
+[default]
+port = 8000
+
+# The database file.
+[default.databases.sqlite_database]
+url = "db.sqlite3"
+
+
+# LDAP Settings
+[default.ldap]
+# Set this to true if you want LDAP support.
+enabled = false
+# The URL of the LDAP server to connect to. Note that if using LDAPS (LDAP over SSL), TLS must be enabled.
+server_url = "ldap://127.0.0.1:389"
+# The server type - either plain LDAP or Active Directory. Set it to "AD" for Active Directory support.
+# This setting is important because while AD can work over LDAP, it uses a different schema.
+type = "LDAP"
+# The base to start the search for users from.
+# This should be as far down the tree as possible.
+search_base = "dc=example,dc=com"
+
+# LDAP TLS settings.
+[default.ldap.tls]
+# This needs to be set to true if LDAPS is in use.
+enabled = false
+# Whether to verify TLS certificates from the server.
+# This should be true unless the LDAPS server has certificate problems.
+verify_certificates = true
+
+# The settings for the read-only LDAP reader user.
+[default.ldap.reader]
+# The complete Distinguished Name (DN) of the user.
+distinguished_name = "cn=reader,dc=example,dc=com"
+# The password for binding to the user.
+password = "password"

@@ -6,6 +6,7 @@ use rocket::{
 	serde::json::Json,
 	time::OffsetDateTime,
 	Route,
+	State,
 };
 
 use super::Routable;
@@ -39,22 +40,11 @@ pub struct AuthData {
 
 #[post("/authenticate", data = "<auth_data>")]
 pub async fn authenticate(
+	authenticator: &State<LdapAuthenticator>,
 	cookie_jar: &CookieJar<'_>,
 	conn: DbConn,
 	auth_data: Json<AuthData>,
 ) -> Result<Json<()>, Error> {
-	// Build the authenticator
-	// TODO: Test credentials, hardcoded - https://www.forumsys.com/2022/05/10/online-ldap-test-server/
-	let authenticator = LdapAuthenticator {
-		server_url: "ldap://ldap.forumsys.com:389".to_owned(),
-		use_tls: false,
-		verify_tls_certificate: false,
-		reader_dn: "cn=read-only-admin,dc=example,dc=com".to_owned(),
-		reader_password: "password".to_owned(),
-		search_base: "dc=example,dc=com".to_owned(),
-		user_identifier: "uid".to_owned(),
-	};
-
 	// Authenticate the credentials with the server
 	let auth_result = authenticator
 		.authenticate_user(auth_data.username.as_str(), auth_data.password.as_str())

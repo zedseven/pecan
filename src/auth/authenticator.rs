@@ -1,7 +1,13 @@
 // Uses
 use ldap3::{LdapConnAsync, LdapConnSettings, Scope, SearchEntry};
 
+use crate::{
+	config::{LdapServerType, LdapSettings},
+	error::InternalError,
+};
+
 /// The object that handles authentication with an LDAP server.
+#[derive(Debug)]
 pub struct LdapAuthenticator {
 	/// The server URL to connect to, including the scheme definition and the
 	/// port.
@@ -30,6 +36,29 @@ pub struct LdapAuthenticator {
 	pub user_identifier: String,
 }
 
+impl TryFrom<&LdapSettings> for LdapAuthenticator {
+	type Error = InternalError;
+
+	fn try_from(config: &LdapSettings) -> Result<Self, Self::Error> {
+		if !config.tls.enabled && config.server_url.starts_with("ldaps:") {
+			return Err("TLS is disabled but the specified URL uses LDAP over SSL".into());
+		}
+		Ok(Self {
+			server_url: config.server_url.clone(),
+			use_tls: config.tls.enabled,
+			verify_tls_certificate: config.tls.verify_certificates,
+			reader_dn: config.reader.distinguished_name.clone(),
+			reader_password: config.reader.password.clone(),
+			search_base: config.search_base.clone(),
+			user_identifier: match config.r#type {
+				LdapServerType::Ldap => "uid",
+				LdapServerType::ActiveDirectory => "sAMAccountName",
+			}
+			.to_owned(),
+		})
+	}
+}
+
 impl LdapAuthenticator {
 	/// Authenticate a user against the server.
 	///
@@ -39,7 +68,7 @@ impl LdapAuthenticator {
 	/// If the `Option` is `Some`, the authentication was valid and the
 	/// contained value is the user's distinguished name on the server.
 	pub async fn authenticate_user(
-		self,
+		&self,
 		username: &str,
 		password: &str,
 	) -> Result<Option<String>, &'static str> {

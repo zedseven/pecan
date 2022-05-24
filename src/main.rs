@@ -2,6 +2,7 @@
 
 // Features
 #![feature(min_specialization)]
+#![feature(async_closure)]
 // Linting Rules
 #![warn(
 	clippy::complexity,
@@ -53,6 +54,7 @@ use crate::routes::rocket;
 
 // Modules
 mod auth;
+mod config;
 mod db;
 mod error;
 mod id_gen;

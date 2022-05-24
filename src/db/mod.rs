@@ -19,16 +19,21 @@ pub struct DbConn(pub(crate) SqliteConnection);
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 
 /// Initialises the database and runs all necessary migrations.
-pub async fn init(rocket: Rocket<Build>) -> Rocket<Build> {
-	let conn: DbConn = DbConn::get_one(&rocket)
+pub async fn init(rocket: Rocket<Build>) -> Result<Rocket<Build>, Rocket<Build>> {
+	let conn: DbConn = if let Some(c) = DbConn::get_one(&rocket).await {
+		c
+	} else {
+		eprintln!("unable to get a database connection for initialisation");
+		return Err(rocket);
+	};
+
+	if conn
+		.run(|c| c.run_pending_migrations(MIGRATIONS).is_ok())
 		.await
-		.expect("unable to get a database connection for initialisation");
-
-	conn.run(|c| {
-		c.run_pending_migrations(MIGRATIONS)
-			.expect("failed to run embedded database migrations");
-	})
-	.await;
-
-	rocket
+	{
+		Ok(rocket)
+	} else {
+		eprintln!("failed to run embedded database migrations");
+		Err(rocket)
+	}
 }
