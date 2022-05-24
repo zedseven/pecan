@@ -9,6 +9,9 @@ pub const CONFIG_ENV_PREFIX: &str = "PECAN_";
 #[derive(Debug, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct AppConfig {
+	/// How many days a login token is valid for, before a user has to log in
+	/// again.
+	pub token_valid_days: u32,
 	/// Settings for LDAP-based authentication.
 	pub ldap: Option<LdapSettings>,
 }

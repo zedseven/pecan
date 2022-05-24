@@ -61,6 +61,7 @@ pub fn rocket() -> Rocket<Build> {
 	// Prepare for launch
 	let mut rocket = Rocket::custom(config)
 		.attach(AdHoc::config::<AppConfig>())
+		.attach(AdHoc::try_on_ignite("Config Validation", validate_config))
 		.attach(DbConn::fairing())
 		.attach(AdHoc::try_on_ignite("Database Setup", init_db));
 
@@ -98,6 +99,24 @@ pub fn rocket() -> Rocket<Build> {
 		.mount("/", FileServer::from(SVELTE_PATH));
 
 	rocket
+}
+
+#[allow(clippy::unused_async)]
+async fn validate_config(rocket: Rocket<Build>) -> Result<Rocket<Build>, Rocket<Build>> {
+	// The `unwrap`s in this function are okay because Figment validates that the
+	// values are present anyways.
+
+	if rocket
+		.figment()
+		.extract_inner::<u32>("token_valid_days")
+		.unwrap()
+		< 1
+	{
+		eprintln!("token_valid_days must be a positive value");
+		return Err(rocket);
+	}
+
+	Ok(rocket)
 }
 
 /// The interface that allows a set of routes to be mounted on a path.

@@ -14,15 +14,19 @@ mod tokens;
 /// The name of the cookie used to store the access token.
 pub const COOKIE_NAME: &str = "access_token";
 
-// The reason these two are different types and the duration needs to be defined
-// twice is because there's *still* not a standard time library and everyone
+// The reason these two are different types and the duration needs two different
+// functions is because there's *still* not a standard time library and everyone
 // uses something different.
 
 /// The duration of validity of the token. (before the user has to re-login)
-pub const TOKEN_VALID_DURATION: &'static dyn Fn() -> ChronoDuration = &|| ChronoDuration::weeks(1);
+pub fn get_token_valid_duration(days: u32) -> ChronoDuration {
+	ChronoDuration::days(i64::from(days))
+}
+
 /// The duration set on the cookie for the access token.
 ///
 /// This is slightly shorter so that in theory users should never have a cookie
 /// with a token that's not also valid on the server, under ideal circumstances.
-pub const TOKEN_COOKIE_VALID_DURATION: &'static dyn Fn() -> TimeDuration =
-	&|| TimeDuration::weeks(1) - TimeDuration::seconds(15);
+pub fn get_token_cookie_valid_duration(days: u32) -> TimeDuration {
+	TimeDuration::days(i64::from(days)) - TimeDuration::seconds(15)
+}

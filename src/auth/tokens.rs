@@ -14,7 +14,7 @@ use diesel::{
 };
 
 use crate::{
-	auth::TOKEN_VALID_DURATION,
+	auth::get_token_valid_duration,
 	db::{models::TokenNew, schema},
 	error::{Context, Error},
 	id_gen::{gen_new_id, Base64},
@@ -25,6 +25,7 @@ use crate::{
 pub fn generate_token_for_user(
 	conn: &mut SqliteConnection,
 	token_user: &str,
+	token_valid_days: u32,
 ) -> Result<String, Error> {
 	// Uses
 	use schema::tokens::dsl::*;
@@ -40,7 +41,7 @@ pub fn generate_token_for_user(
 			.values(TokenNew {
 				user: Cow::from(token_user),
 				value: Cow::from(token_value.as_str()),
-				expires: (Utc::now() + TOKEN_VALID_DURATION()).naive_utc(),
+				expires: (Utc::now() + get_token_valid_duration(token_valid_days)).naive_utc(),
 			})
 			.execute(tc)
 			.with_context("unable to insert into tokens")

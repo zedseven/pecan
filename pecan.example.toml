@@ -1,12 +1,16 @@
 # Pecan Configuration
 
-# Basic Settings
+# App Settings
 # You can leave these as they are unless you have a reason to change them.
-# For more information about possible basic settings, see: https://rocket.rs/guide/configuration/#rockettoml
+# For more information about some possible settings, see: https://rocket.rs/guide/configuration/#rockettoml
 [default]
 port = 8000
 
-# The database file.
+# How many days a login token is valid for, before a user has to log in again.
+token_valid_days = 7
+
+
+# The database file. You can leave this be unless you need to change it.
 [default.databases.sqlite_database]
 url = "db.sqlite3"
 

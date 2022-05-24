@@ -13,11 +13,12 @@ use super::Routable;
 use crate::{
 	auth::{
 		generate_token_for_user,
+		get_token_cookie_valid_duration,
 		AuthedUserForwarding,
 		LdapAuthenticator,
 		COOKIE_NAME,
-		TOKEN_COOKIE_VALID_DURATION,
 	},
+	config::AppConfig,
 	db::DbConn,
 	error::{Context, Error, UserError},
 };
@@ -40,6 +41,7 @@ pub struct AuthData {
 
 #[post("/authenticate", data = "<auth_data>")]
 pub async fn authenticate(
+	config: &State<AppConfig>,
 	authenticator: &State<LdapAuthenticator>,
 	cookie_jar: &CookieJar<'_>,
 	conn: DbConn,
@@ -57,12 +59,14 @@ pub async fn authenticate(
 	let user_dn = auth_result.unwrap();
 
 	// If auth was successful, generate the new token and set a cookie for the user
+	let token_valid_days = config.token_valid_days;
 	let new_token = conn
-		.run(move |c| generate_token_for_user(c, user_dn.as_str()))
+		.run(move |c| generate_token_for_user(c, user_dn.as_str(), token_valid_days))
 		.await
 		.with_context("failed to generate the new token")?;
 	let mut new_cookie = Cookie::new(COOKIE_NAME, new_token);
-	new_cookie.set_expires(OffsetDateTime::now_utc() + TOKEN_COOKIE_VALID_DURATION());
+	new_cookie
+		.set_expires(OffsetDateTime::now_utc() + get_token_cookie_valid_duration(token_valid_days));
 	cookie_jar.add_private(new_cookie);
 
 	Ok(Json(()))
