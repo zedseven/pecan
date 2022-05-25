@@ -4,6 +4,8 @@ use std::{
 	process::Command,
 };
 
+use which::which;
+
 /// Builds the static site before starting up.
 fn main() {
 	// Exit immediately if the `no-build` feature is passed. This is because for
@@ -37,8 +39,13 @@ fn main() {
 		"production"
 	};
 
+	// Get the NPM binary path
+	// Previously it just used `Command::new("npm")`, but that didn't work on
+	// Windows for some stupid reason
+	let npm_path = which("npm").expect("unable to locate an installed instance of NPM");
+
 	// Run the build command
-	let output = Command::new("npm")
+	let output = Command::new(npm_path)
 		.arg("run")
 		.arg("build")
 		.current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/web"))

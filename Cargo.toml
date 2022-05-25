@@ -29,6 +29,9 @@ thiserror = "1.0"
 # To have sqlite3.lib be linked automatically
 libsqlite3-sys = { version = "0.22", default-features = false, features = ["bundled"] }
 
+[build-dependencies]
+which = "4.2"
+
 [features]
 # Doesn't run `build.rs` when enabled. Used to prevent CI Clippy runs from running `build.rs`.
 no-build = []
