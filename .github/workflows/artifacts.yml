@@ -62,11 +62,11 @@ jobs:
       - name: Prepare Artifacts (Windows)
         if: runner.os == 'Windows'
         run: |
-          mkdir ./release &&
-          copy ./target/release/pecan.exe ./release/ &&
-          ((robocopy ./web/build ./release/dist /E) & IF %ERRORLEVEL% LSS 8 SET ERRORLEVEL = 0) &&
-          copy ./pecan.example.toml ./release/ &&
-          copy ./README.md ./release/
+          mkdir .\release &&
+          copy .\target\release\pecan.exe .\release\ &&
+          xcopy .\web\build .\release\dist /S /I &&
+          copy .\pecan.example.toml .\release\ &&
+          copy .\README.md .\release\
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
