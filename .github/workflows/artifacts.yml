@@ -64,7 +64,7 @@ jobs:
         run: |
           mkdir ./release &&
           copy ./target/release/pecan.exe ./release/ &&
-          xcopy ./web/build ./release/dist /S /I &&
+          robocopy ./web/build ./release/dist /E &&
           copy ./pecan.example.toml ./release/ &&
           copy ./README.md ./release/
 
