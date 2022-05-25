@@ -21,7 +21,8 @@
 	clippy::self_named_module_files,
 	clippy::str_to_string,
 	clippy::undocumented_unsafe_blocks,
-	clippy::wildcard_enum_match_arm
+	clippy::wildcard_enum_match_arm,
+	rust_2018_idioms
 )]
 #![allow(
 	clippy::cast_possible_truncation,

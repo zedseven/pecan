@@ -120,12 +120,12 @@ pub async fn get_definitions(_user: &AuthedUser, conn: DbConn) -> Result<JsonVal
 
 		// Load the data
 		let column_definition_results = column_definitions
-			.load::<ColumnDefinition>(c)
+			.load::<ColumnDefinition<'_>>(c)
 			.with_context("unable to load the column definitions")?;
 
 		let possible_values_results = ColumnPossibleValue::belonging_to(&column_definition_results)
 			.order_by(value)
-			.load::<ColumnPossibleValue>(c)
+			.load::<ColumnPossibleValue<'_>>(c)
 			.with_context("unable to load the column possible values")?
 			.grouped_by(&column_definition_results);
 
@@ -136,7 +136,7 @@ pub async fn get_definitions(_user: &AuthedUser, conn: DbConn) -> Result<JsonVal
 
 		let location_results = locations
 			.order_by(schema::locations::dsl::name)
-			.load::<LocationDefinition>(c)
+			.load::<LocationDefinition<'_>>(c)
 			.with_context("unable to load the locations")?;
 
 		Ok(json!({ "columnDefinitions": column_results, "locations": location_results }))
@@ -160,7 +160,7 @@ pub async fn get_device(
 			.filter(device_id.eq(device.as_str()))
 			.inner_join(locations)
 			.select(DEVICE_INFO)
-			.get_result::<DeviceInfo>(c)
+			.get_result::<DeviceInfo<'_>>(c)
 			.optional()
 			.with_context("unable to load device info")?;
 		if device_key_info_results.is_none() {
@@ -169,12 +169,12 @@ pub async fn get_device(
 		let device_key_info_results = device_key_info_results.unwrap();
 
 		let device_data_results = DeviceData::belonging_to(&device_key_info_results)
-			.get_results::<DeviceData>(c)
+			.get_results::<DeviceData<'_>>(c)
 			.with_context("unable to load the device data")?;
 
 		let device_component_results = DeviceComponent::belonging_to(&device_key_info_results)
 			.order_by(component_type)
-			.get_results::<DeviceComponent>(c)
+			.get_results::<DeviceComponent<'_>>(c)
 			.with_context("unable to load the device components")?;
 
 		// Return the results
@@ -264,16 +264,16 @@ pub async fn search_devices(
 				.bind::<Text, _>(bind_data_value_search);
 		}
 		let device_key_info_results = device_key_info_query
-			.load::<DeviceInfoByName>(c)
+			.load::<DeviceInfoByName<'_>>(c)
 			.with_context("unable to load device info")?
 			.drain(..)
 			.map(Into::into)
-			.collect::<Vec<DeviceInfo>>();
+			.collect::<Vec<DeviceInfo<'_>>>();
 		// dbg!(&device_key_info_results);
 
 		// Collect the device data
 		let device_data_results = DeviceData::belonging_to(&device_key_info_results)
-			.load::<DeviceData>(c)
+			.load::<DeviceData<'_>>(c)
 			.with_context("unable to load the device data")?
 			.grouped_by(&device_key_info_results);
 

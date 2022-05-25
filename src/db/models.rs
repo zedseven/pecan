@@ -1,3 +1,5 @@
+#![allow(clippy::extra_unused_lifetimes)]
+
 // Uses
 use std::borrow::Cow;
 

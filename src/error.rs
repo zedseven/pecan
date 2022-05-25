@@ -142,14 +142,14 @@ impl<T> Context<T, Error> for Result<T, Error> {
 
 // Responder Implementations
 impl<'r, 'o: 'r> Responder<'r, 'o> for InternalError {
-	fn respond_to(self, request: &Request) -> response::Result<'o> {
+	fn respond_to(self, request: &Request<'_>) -> response::Result<'o> {
 		eprintln!("{}", self);
 		Status::InternalServerError.respond_to(request)
 	}
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for UserError {
-	fn respond_to(self, request: &Request) -> response::Result<'o> {
+	fn respond_to(self, request: &Request<'_>) -> response::Result<'o> {
 		match self {
 			UserError::BadRequest(message) => BadRequest(Some(message)).respond_to(request),
 			UserError::NotFound(message) => NotFound(Some(message)).respond_to(request),
@@ -159,7 +159,7 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for UserError {
 
 // Forward to the internal error type
 impl<'r, 'o: 'r> Responder<'r, 'o> for Error {
-	fn respond_to(self, request: &Request) -> response::Result<'o> {
+	fn respond_to(self, request: &Request<'_>) -> response::Result<'o> {
 		match self {
 			Error::User(err) => err.respond_to(request),
 			Error::NoContext(err) | Error::WithContext { source: err, .. } => {

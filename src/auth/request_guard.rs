@@ -124,12 +124,12 @@ fn token_is_valid(conn: &mut SqliteConnection, token: &str) -> Result<Option<Str
 		.filter(value.eq(token))
 		.filter(expires.gt(Utc::now().naive_utc()))
 		.filter(valid.eq(true))
-		.get_result::<Token>(conn)
+		.get_result::<Token<'_>>(conn)
 		.optional()?;
 	Ok(token_result.map(|t| t.user.to_string()))
 }
 
 /// Removes the token cookie if present.
-fn remove_cookie(request: &Request) {
+fn remove_cookie(request: &Request<'_>) {
 	request.cookies().remove_private(Cookie::named(COOKIE_NAME));
 }
