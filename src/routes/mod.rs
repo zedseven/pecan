@@ -73,11 +73,15 @@ pub fn rocket() -> Rocket<Build> {
 		.expect("missing required configuration parameter `serve_path`");
 
 	// Prepare the LDAP authenticator if LDAP is enabled
+	let mut ldap_enabled = false;
 	if let Ok(ldap_config) = rocket.figment().extract_inner::<LdapSettings>("ldap") {
 		if ldap_config.enabled {
 			rocket = rocket.attach(AdHoc::try_on_ignite("LDAP Authenticator", async move |r| {
 				match LdapAuthenticator::try_from(&ldap_config) {
-					Ok(auth) => Ok(r.manage(auth)),
+					Ok(auth) => {
+						ldap_enabled = true;
+						Ok(r.manage(Some(auth)))
+					}
 					Err(e) => {
 						eprintln!("{}", e);
 						Err(r)
@@ -85,6 +89,9 @@ pub fn rocket() -> Rocket<Build> {
 				}
 			}));
 		}
+	}
+	if !ldap_enabled {
+		rocket = rocket.manage::<Option<LdapAuthenticator>>(None);
 	}
 
 	// Mount the routes

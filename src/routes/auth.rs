@@ -42,13 +42,16 @@ pub struct AuthData {
 #[post("/authenticate", data = "<auth_data>")]
 pub async fn authenticate(
 	config: &State<AppConfig>,
-	authenticator: &State<LdapAuthenticator>,
+	authenticator: &State<Option<LdapAuthenticator>>,
 	cookie_jar: &CookieJar<'_>,
 	conn: DbConn,
 	auth_data: Json<AuthData>,
 ) -> Result<Json<()>, Error> {
 	// Authenticate the credentials with the server
 	let auth_result = authenticator
+		.inner()
+		.as_ref()
+		.expect("unavailable LDAP authenticator")
 		.authenticate_user(
 			auth_data.username.as_str().trim(),
 			auth_data.password.as_str(),
