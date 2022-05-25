@@ -64,7 +64,7 @@ jobs:
         run: |
           mkdir ./release &&
           copy ./target/release/pecan.exe ./release/ &&
-          robocopy ./web/build ./release/dist /E &&
+          ((robocopy ./web/build ./release/dist /E) ^& IF %ERRORLEVEL% LSS 8 SET ERRORLEVEL = 0) &&
           copy ./pecan.example.toml ./release/ &&
           copy ./README.md ./release/
 
