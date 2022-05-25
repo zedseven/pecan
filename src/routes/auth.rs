@@ -49,19 +49,23 @@ pub async fn authenticate(
 ) -> Result<Json<()>, Error> {
 	// Authenticate the credentials with the server
 	let auth_result = authenticator
-		.authenticate_user(auth_data.username.as_str(), auth_data.password.as_str())
+		.authenticate_user(
+			auth_data.username.as_str().trim(),
+			auth_data.password.as_str(),
+		)
 		.await
 		.with_context("something went wrong when attempting to authenticate a user")?;
 
 	if auth_result.is_none() {
 		return Err(UserError::BadRequest("Invalid credentials.").into());
 	}
-	let user_dn = auth_result.unwrap();
+	// let user_dn = auth_result.unwrap();
 
 	// If auth was successful, generate the new token and set a cookie for the user
 	let token_valid_days = config.token_valid_days;
+	let username_clone = auth_data.username.clone();
 	let new_token = conn
-		.run(move |c| generate_token_for_user(c, user_dn.as_str(), token_valid_days))
+		.run(move |c| generate_token_for_user(c, username_clone.as_str().trim(), token_valid_days))
 		.await
 		.with_context("failed to generate the new token")?;
 	let mut new_cookie = Cookie::new(COOKIE_NAME, new_token);
