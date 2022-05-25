@@ -2,7 +2,7 @@
 use rocket::{
 	fairing::AdHoc,
 	figment::{
-		providers::{Env, Format, Toml},
+		providers::{Env, Format, Serialized, Toml},
 		Figment,
 		Profile,
 	},
@@ -42,12 +42,12 @@ mod svelte_pages;
 
 // Constants
 const API_ROOT: &str = "/api";
-const SVELTE_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/web/build");
 
 /// Sets up the Rocket server.
 pub fn rocket() -> Rocket<Build> {
 	// Load the config
 	let config = Figment::from(Config::default())
+		.join(Serialized::defaults(AppConfig::default()))
 		.merge(Toml::file(Env::var_or(CONFIG_FILE_ENV_OVERRIDE, CONFIG_FILE_NAME)).nested())
 		.merge(
 			Env::prefixed(CONFIG_ENV_PREFIX)
@@ -65,6 +65,12 @@ pub fn rocket() -> Rocket<Build> {
 		.attach(AdHoc::try_on_ignite("Config Validation", validate_config))
 		.attach(DbConn::fairing())
 		.attach(AdHoc::try_on_ignite("Database Setup", init_db));
+
+	// Fetch the Svelte path
+	let svelte_path = rocket
+		.figment()
+		.extract_inner::<String>("serve_path")
+		.expect("missing required configuration parameter `serve_path`");
 
 	// Prepare the LDAP authenticator if LDAP is enabled
 	if let Ok(ldap_config) = rocket.figment().extract_inner::<LdapSettings>("ldap") {
@@ -97,7 +103,7 @@ pub fn rocket() -> Rocket<Build> {
 		)
 		.mount(FaviconRoutes::PATH, FaviconRoutes::ROUTES())
 		.mount(SveltePages::PATH, SveltePages::ROUTES())
-		.mount("/", FileServer::from(SVELTE_PATH));
+		.mount("/", FileServer::from(svelte_path.as_str()));
 
 	rocket
 }

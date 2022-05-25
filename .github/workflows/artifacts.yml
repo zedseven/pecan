@@ -55,22 +55,22 @@ jobs:
           cp -r ./web/build ./release/dist &&
           cp ./pecan.example.toml ./release/ &&
           cp ./setup.bash ./release/ &&
-          cp ./README.md ./release/
+          cp ./README.md ./release/ &&
+          chmod +x ./release/pecan &&
+          chmod +x ./release/setup.bash
 
       - name: Prepare Artifacts (Windows)
         if: runner.os == 'Windows'
         run: |
           mkdir ./release &&
           copy ./target/release/pecan.exe ./release/ &&
-          mkdir ./release/dist &&
-          copy ./web/build/* ./release/dist/ &&
+          xcopy ./web/build ./release/dist /S /I &&
           copy ./pecan.example.toml ./release/ &&
-          copy ./setup.bash ./release/ &&
           copy ./README.md ./release/
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: Release (${{ matrix.os }})
+          name: Pecan (${{ matrix.os }})
           path: ./release
           if-no-files-found: error

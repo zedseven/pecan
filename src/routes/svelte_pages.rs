@@ -1,11 +1,12 @@
 // Uses
-use rocket::{fs::NamedFile, get, response::Redirect, routes, Route};
+use rocket::{fs::NamedFile, get, response::Redirect, routes, Route, State};
 
-use super::{Routable, SVELTE_PATH};
-use crate::auth::AuthedUserForwarding;
+use super::Routable;
+use crate::{auth::AuthedUserForwarding, config::AppConfig};
 
 /// The route for this section.
 pub(super) struct SveltePages;
+
 impl Routable for SveltePages {
 	const PATH: &'static str = "/";
 	const ROUTES: &'static dyn Fn() -> Vec<Route> = &|| {
@@ -24,8 +25,8 @@ impl Routable for SveltePages {
 
 /// The login page.
 #[get("/login", rank = 9)]
-pub async fn login_page() -> Option<NamedFile> {
-	NamedFile::open(format!("{}/login.html", SVELTE_PATH))
+pub async fn login_page(config: &State<AppConfig>) -> Option<NamedFile> {
+	NamedFile::open(format!("{}/login.html", config.serve_path.as_str()))
 		.await
 		.ok()
 }
@@ -36,16 +37,22 @@ pub async fn login_page() -> Option<NamedFile> {
 /// automatically append `index.html` to a directory, but it makes sense to
 /// define it here since all other pages *will* require it.
 #[get("/")]
-pub async fn index_page(_user: &AuthedUserForwarding) -> Option<NamedFile> {
-	NamedFile::open(format!("{}/index.html", SVELTE_PATH))
+pub async fn index_page(
+	config: &State<AppConfig>,
+	_user: &AuthedUserForwarding,
+) -> Option<NamedFile> {
+	NamedFile::open(format!("{}/index.html", config.serve_path.as_str()))
 		.await
 		.ok()
 }
 
 /// The edit page, without a parameter. (for adding new devices)
 #[get("/edit")]
-pub async fn edit_page(_user: &AuthedUserForwarding) -> Option<NamedFile> {
-	NamedFile::open(format!("{}/edit.html", SVELTE_PATH))
+pub async fn edit_page(
+	config: &State<AppConfig>,
+	_user: &AuthedUserForwarding,
+) -> Option<NamedFile> {
+	NamedFile::open(format!("{}/edit.html", config.serve_path.as_str()))
 		.await
 		.ok()
 }
@@ -55,25 +62,19 @@ pub async fn edit_page(_user: &AuthedUserForwarding) -> Option<NamedFile> {
 /// Svelte handles the actual parameter, so we need not worry about it here.
 #[get("/edit/<_device>")]
 pub async fn edit_page_with_param(
+	config: &State<AppConfig>,
 	user: &AuthedUserForwarding,
 	_device: String,
 ) -> Option<NamedFile> {
-	edit_page(user).await
+	edit_page(config, user).await
 }
-
-// /// The admin page.
-// #[get("/admin")]
-// pub async fn admin_page(_user: AuthedAdmin) -> Option<NamedFile> {
-// 	NamedFile::open(format!("{}/admin.html", SVELTE_PATH))
-// 		.await
-// 		.ok()
-// }
 
 // Auth redirect catchers - these redirect based on whether the user is logged
 // in or not
 fn redirect_to_login() -> Redirect {
 	Redirect::to(uri!("/login"))
 }
+
 fn redirect_to_index() -> Redirect {
 	Redirect::to(uri!("/"))
 }
@@ -98,8 +99,3 @@ pub fn edit_page_redir() -> Redirect {
 pub fn edit_page_with_param_redir(_device: String) -> Redirect {
 	redirect_to_login()
 }
-
-// #[get("/admin", rank = 9)]
-// pub fn admin_page_redir() -> Redirect {
-// 	redirect_to_index()
-// }
