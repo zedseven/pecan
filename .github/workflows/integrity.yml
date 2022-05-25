@@ -35,8 +35,8 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - windows-latest
           - ubuntu-latest
+          - windows-latest
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -52,6 +52,8 @@ jobs:
 
       - name: Restore cache
         uses: Swatinem/rust-cache@v1
+        with:
+          key: integrity
 
       - name: Cargo Clippy
         uses: actions-rs/cargo@v1

@@ -1,0 +1,76 @@
+name: Artifacts
+
+on:
+  push:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install `nightly` Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          profile: minimal
+          override: true
+
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@v1
+        with:
+          key: artifacts
+
+      - name: Install NPM
+        uses: actions/setup-node@v3
+
+      - name: NPM setup dependencies
+        working-directory: ./web
+        run: npm ci --production
+
+      # Runs `npm run build` internally
+      - name: Cargo Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release
+
+      - name: Prepare Artifacts (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          mkdir ./release &&
+          cp ./target/release/pecan ./release/ &&
+          cp -r ./web/build ./release/dist &&
+          cp ./pecan.example.toml ./release/ &&
+          cp ./setup.bash ./release/ &&
+          cp ./README.md ./release/
+
+      - name: Prepare Artifacts (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          mkdir ./release &&
+          copy ./target/release/pecan.exe ./release/ &&
+          mkdir ./release/dist &&
+          copy ./web/build/* ./release/dist/ &&
+          copy ./pecan.example.toml ./release/ &&
+          copy ./setup.bash ./release/ &&
+          copy ./README.md ./release/
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: Release (${{ matrix.os }})
+          path: ./release
+          if-no-files-found: error
