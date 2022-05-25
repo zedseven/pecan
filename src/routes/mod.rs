@@ -21,6 +21,7 @@ use crate::{
 		CONFIG_ENV_PREFIX,
 		CONFIG_FILE_ENV_OVERRIDE,
 		CONFIG_FILE_NAME,
+		CONFIG_FILE_PROFILE_ENV_NAME,
 	},
 	db::{init as init_db, DbConn},
 	routes::{
@@ -54,7 +55,7 @@ pub fn rocket() -> Rocket<Build> {
 				.global(),
 		)
 		.select(Profile::from_env_or(
-			"ROCKET_PROFILE",
+			CONFIG_FILE_PROFILE_ENV_NAME,
 			Config::DEFAULT_PROFILE,
 		));
 

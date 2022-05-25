@@ -1,6 +1,7 @@
 // Constants
 pub const CONFIG_FILE_NAME: &str = "pecan.toml";
 pub const CONFIG_FILE_ENV_OVERRIDE: &str = "PECAN_CONFIG";
+pub const CONFIG_FILE_PROFILE_ENV_NAME: &str = "PECAN_PROFILE";
 pub const CONFIG_ENV_PREFIX: &str = "PECAN_";
 
 // Config Struct
