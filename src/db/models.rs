@@ -4,7 +4,11 @@
 use std::borrow::Cow;
 
 use chrono::NaiveDateTime;
-use diesel::sql_types::{Integer, Text, Timestamp};
+use diesel::{
+	dsl::Nullable,
+	sql_types::{Integer, Text, Timestamp},
+	NullableExpressionMethods,
+};
 
 use super::schema::*;
 
@@ -38,6 +42,7 @@ pub struct ColumnDefinition<'a> {
 	pub show_in_main_page: bool,
 	pub show_on_labels: bool,
 	pub exclusively_possible_values: bool,
+	pub default_value_id: Option<i32>,
 }
 #[derive(Insertable, Debug)]
 #[diesel(table_name = column_definitions)]
@@ -48,9 +53,10 @@ pub struct ColumnDefinitionNew<'a> {
 	pub show_in_main_page: bool,
 	pub show_on_labels: bool,
 	pub exclusively_possible_values: bool,
+	pub default_value_id: Option<i32>,
 }
 #[derive(Associations, Identifiable, Queryable, Serialize, Deserialize, Debug)]
-#[diesel(table_name = column_possible_values, belongs_to(ColumnDefinition<'_>, foreign_key = column_definition_id))]
+#[diesel(table_name = column_possible_values, belongs_to(ColumnDefinitionSelected<'_>, foreign_key = column_definition_id))]
 #[serde(rename_all = "camelCase")]
 pub struct ColumnPossibleValue<'a> {
 	pub id: i32,
@@ -141,7 +147,7 @@ select_def! {
 	DEVICE_INFO: DeviceInfoSelect = (
 		device_key_info::id,
 		device_key_info::device_id,
-		locations::id,
+		device_key_info::location_id,
 		locations::name,
 		device_key_info::last_updated
 	)
@@ -182,4 +188,44 @@ impl<'a> From<DeviceInfoByName<'a>> for DeviceInfo<'a> {
 			last_updated: by_name.last_updated,
 		}
 	}
+}
+
+// Can't use `select_def` because of the nullable columns.
+pub type ColumnDefinitionSelect = (
+	column_definitions::id,
+	column_definitions::name,
+	column_definitions::not_null,
+	column_definitions::unique_values,
+	column_definitions::show_in_main_page,
+	column_definitions::show_on_labels,
+	column_definitions::exclusively_possible_values,
+	column_definitions::default_value_id,
+	Nullable<column_possible_values::value>,
+);
+pub const COLUMN_DEFINITION: &'static dyn Fn() -> ColumnDefinitionSelect = &|| {
+	(
+		column_definitions::id,
+		column_definitions::name,
+		column_definitions::not_null,
+		column_definitions::unique_values,
+		column_definitions::show_in_main_page,
+		column_definitions::show_on_labels,
+		column_definitions::exclusively_possible_values,
+		column_definitions::default_value_id,
+		column_possible_values::value.nullable(),
+	)
+};
+#[derive(Identifiable, Queryable, Serialize, Deserialize, Debug)]
+#[diesel(table_name = column_definitions)]
+#[serde(rename_all = "camelCase")]
+pub struct ColumnDefinitionSelected<'a> {
+	pub id: i32,
+	pub name: Cow<'a, str>,
+	pub not_null: bool,
+	pub unique_values: bool,
+	pub show_in_main_page: bool,
+	pub show_on_labels: bool,
+	pub exclusively_possible_values: bool,
+	pub default_value_id: Option<i32>,
+	pub default_value: Option<Cow<'a, str>>,
 }

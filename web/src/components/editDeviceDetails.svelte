@@ -50,7 +50,7 @@
 			for (const columnDefinition of definitions.columnDefinitions) {
 				deviceData.columnData[columnDefinition[0].id] = {
 					columnDefinitionId: columnDefinition[0].id,
-					dataValue: null,
+					dataValue: columnDefinition[0].defaultValue,
 				};
 				deviceDataDuplicateFlags[columnDefinition[0].id] = false;
 			}

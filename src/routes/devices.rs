@@ -5,17 +5,22 @@ use chrono::Utc;
 use diesel::{
 	dsl::exists,
 	insert_into,
+	query_builder::{BoxedSqlQuery, SqlQuery},
 	result::OptionalExtension,
 	select,
 	sql_query,
 	sql_types::{Integer, Nullable, Text},
+	sqlite::Sqlite,
 	update,
 	BelongingToDsl,
 	Connection,
 	ExpressionMethods,
 	GroupedBy,
+	JoinOnDsl,
+	NullableExpressionMethods,
 	QueryDsl,
 	RunQueryDsl,
+	SqliteConnection,
 };
 use rocket::{
 	get,
@@ -45,6 +50,7 @@ impl Routable for DevicesApi {
 	const ROUTES: &'static dyn Fn() -> Vec<Route> = &|| {
 		routes![
 			get_definitions,
+			search_devices_default,
 			search_devices,
 			get_device,
 			checkout_device,
@@ -120,7 +126,13 @@ pub async fn get_definitions(_user: &AuthedUser, conn: DbConn) -> Result<JsonVal
 
 		// Load the data
 		let column_definition_results = column_definitions
-			.load::<ColumnDefinition<'_>>(c)
+			.left_join(
+				column_possible_values
+					.on(default_value_id.eq(schema::column_possible_values::dsl::id.nullable())),
+			)
+			.order_by(schema::column_definitions::dsl::id)
+			.select(COLUMN_DEFINITION())
+			.load::<ColumnDefinitionSelected<'_>>(c)
 			.with_context("unable to load the column definitions")?;
 
 		let possible_values_results = ColumnPossibleValue::belonging_to(&column_definition_results)
@@ -188,7 +200,53 @@ pub async fn get_device(
 	.await
 }
 
-/// Fetches the most recently-updated `count` entries.
+fn perform_search(
+	conn: &mut SqliteConnection,
+	device_key_info_query: BoxedSqlQuery<'_, Sqlite, SqlQuery>,
+) -> Result<JsonValue, Error> {
+	use schema::device_data::dsl::*;
+
+	let device_key_info_results = device_key_info_query
+		.load::<DeviceInfoByName<'_>>(conn)
+		.with_context("unable to load device info")?
+		.drain(..)
+		.map(Into::into)
+		.collect::<Vec<DeviceInfo<'_>>>();
+	// dbg!(&device_key_info_results);
+
+	// Collect the device data
+	let device_data_results = DeviceData::belonging_to(&device_key_info_results)
+		.order_by(column_definition_id) // TODO: This will need to change when column ordering is added
+		.load::<DeviceData<'_>>(conn)
+		.with_context("unable to load the device data")?
+		.grouped_by(&device_key_info_results);
+
+	// Bring it together
+	let device_results = device_key_info_results
+		.into_iter()
+		.zip(device_data_results)
+		.collect::<Vec<_>>();
+
+	// Return the results
+	Ok(json!({ "deviceResults": device_results }))
+}
+
+/// Fetches the results for the default landing page.
+#[post("/search/default")]
+pub async fn search_devices_default(_user: &AuthedUser, conn: DbConn) -> Result<JsonValue, Error> {
+	conn.run(move |c| {
+		let search_sql = include_str!(concat!(
+			env!("CARGO_MANIFEST_DIR"),
+			"/src/sql/default_search.sql"
+		));
+		let device_key_info_query = sql_query(search_sql).into_boxed();
+
+		perform_search(c, device_key_info_query)
+	})
+	.await
+}
+
+/// Performs a search query for a user.
 #[post("/search", data = "<search_query>")]
 pub async fn search_devices(
 	_user: &AuthedUser,
@@ -263,28 +321,8 @@ pub async fn search_devices(
 				.bind::<Integer, _>(bind_column_definition_id)
 				.bind::<Text, _>(bind_data_value_search);
 		}
-		let device_key_info_results = device_key_info_query
-			.load::<DeviceInfoByName<'_>>(c)
-			.with_context("unable to load device info")?
-			.drain(..)
-			.map(Into::into)
-			.collect::<Vec<DeviceInfo<'_>>>();
-		// dbg!(&device_key_info_results);
 
-		// Collect the device data
-		let device_data_results = DeviceData::belonging_to(&device_key_info_results)
-			.load::<DeviceData<'_>>(c)
-			.with_context("unable to load the device data")?
-			.grouped_by(&device_key_info_results);
-
-		// Bring it together
-		let device_results = device_key_info_results
-			.into_iter()
-			.zip(device_data_results)
-			.collect::<Vec<_>>();
-
-		// Return the results
-		Ok(json!({ "deviceResults": device_results }))
+		perform_search(c, device_key_info_query)
 	})
 	.await
 }
@@ -430,6 +468,8 @@ pub async fn create_device(
 /// Updates a device's data.
 ///
 /// TODO: Combine this with `create_device`.
+/// TODO: This has an issue if a column value doesn't yet exist for a specific
+/// device. This might be helped by combining with `create_device`.
 #[post("/update/<device>", data = "<device_info>")]
 pub async fn update_device(
 	_user: &AuthedUser,

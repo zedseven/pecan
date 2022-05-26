@@ -45,6 +45,18 @@
 			return searchResult;
 		});
 	};
+	const defaultSearch = async () => {
+		const searchUrl = '/api/devices/search/default';
+		return postData(searchUrl, null).then(async (searchResult) => {
+			// If there was an error, return it for processing below
+			if (!searchResult.ok) return searchResult;
+
+			// Store the results
+			deviceResults = searchResult.value.deviceResults;
+
+			return searchResult;
+		});
+	};
 
 	const onSearch = async (event) => {
 		event.preventDefault();
@@ -56,7 +68,7 @@
 	let loadingPromise = Promise.all([
 		redirectIfNotLoggedIn(),
 		fetchDefinitions(),
-		sendSearch(null),
+		defaultSearch(),
 	]).then((combinedResult) => {
 		let definitionsResult = combinedResult[1];
 		let loadResult = combinedResult[2];
@@ -72,8 +84,29 @@
 		for (const columnDefinition of definitions.columnDefinitions) {
 			searchData.columnData[columnDefinition[0].id] = {
 				columnDefinitionId: columnDefinition[0].id,
-				dataValue: null,
+				dataValue: columnDefinition[0].defaultValue,
 			};
+		}
+
+		// Fill in holes where there aren't device data entries (for columns that were added after the device was created)
+		for (let deviceResult of deviceResults) {
+			// The lengths match, there's no problem
+			if (deviceResult[1].length == definitions.columnDefinitions.length) continue;
+			// Otherwise, compare the entries to find holes
+			for (let index = 0; index < deviceResult[1].length; index++) {
+				// Compare the column definition IDs
+				if (deviceResult[1][index].columnDefinitionId == definitions.columnDefinitions[index][0].id)
+					continue;
+
+				// Fill the hole
+				deviceResult[1].splice(index, 0, {
+					id: null,
+					deviceKeyInfoId: deviceResult[1][index].deviceKeyInfoId,
+					columnDefinitionId: definitions.columnDefinitions[index][0].id,
+					dataValue: '',
+				});
+				index++;
+			}
 		}
 
 		return Ok({});

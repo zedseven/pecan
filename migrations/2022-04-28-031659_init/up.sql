@@ -6,7 +6,9 @@ CREATE TABLE 'column_definitions'
 	'unique_values'               BOOLEAN             NOT NULL DEFAULT 0,
 	'show_in_main_page'           BOOLEAN             NOT NULL DEFAULT 1,
 	'show_on_labels'              BOOLEAN             NOT NULL DEFAULT 1,
-	'exclusively_possible_values' BOOLEAN             NOT NULL DEFAULT 0
+	'exclusively_possible_values' BOOLEAN             NOT NULL DEFAULT 0,
+	'default_value_id'            INTEGER             NULL,
+	FOREIGN KEY ('default_value_id') REFERENCES 'column_possible_values' ('id')
 );
 
 CREATE TABLE 'column_possible_values'
