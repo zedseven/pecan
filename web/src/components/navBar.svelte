@@ -6,12 +6,12 @@
 	import locationSelector from './locationSelector.svelte';
 
 	// Set the logo filetype based on SVG support
-	let svgFiletype = document.implementation.hasFeature(
+	let logoFileName = document.implementation.hasFeature(
 		'http://www.w3.org/TR/SVG11/feature#Image',
 		'1.1',
 	)
-		? 'svg'
-		: 'png';
+		? 'favicon.svg' // SVGs scale infinitely so it's not a separate file
+		: 'favicon-large.png';
 </script>
 
 <svelte:head>
@@ -23,7 +23,7 @@
 	<div id="primary">
 		<!-- prettier-ignore -->
 		<a href="/" id="titleLink">
-			<img src="/logo.{svgFiletype}" alt="logo" id="logo" /><h1 id="title">{appName}</h1>
+			<img src="/{logoFileName}" alt="logo" id="logo" /><h1 id="title">{appName}</h1>
 		</a>
 	</div>
 	<div id="secondary">

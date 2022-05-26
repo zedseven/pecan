@@ -24,20 +24,13 @@ use crate::{
 		CONFIG_FILE_PROFILE_ENV_NAME,
 	},
 	db::{init as init_db, DbConn},
-	routes::{
-		admin::AdminApi,
-		auth::AuthApi,
-		devices::DevicesApi,
-		favicons::FaviconRoutes,
-		svelte_pages::SveltePages,
-	},
+	routes::{admin::AdminApi, auth::AuthApi, devices::DevicesApi, svelte_pages::SveltePages},
 };
 
 // Modules
 mod admin;
 mod auth;
 mod devices;
-mod favicons;
 mod svelte_pages;
 
 // Constants
@@ -76,12 +69,10 @@ pub fn rocket() -> Rocket<Build> {
 	let mut ldap_enabled = false;
 	if let Ok(ldap_config) = rocket.figment().extract_inner::<LdapSettings>("ldap") {
 		if ldap_config.enabled {
+			ldap_enabled = true;
 			rocket = rocket.attach(AdHoc::try_on_ignite("LDAP Authenticator", async move |r| {
 				match LdapAuthenticator::try_from(&ldap_config) {
-					Ok(auth) => {
-						ldap_enabled = true;
-						Ok(r.manage(Some(auth)))
-					}
+					Ok(auth) => Ok(r.manage(Some(auth))),
 					Err(e) => {
 						eprintln!("{}", e);
 						Err(r)
@@ -108,7 +99,6 @@ pub fn rocket() -> Rocket<Build> {
 			format!("{}{}", API_ROOT, AdminApi::PATH).as_str(),
 			AdminApi::ROUTES(),
 		)
-		.mount(FaviconRoutes::PATH, FaviconRoutes::ROUTES())
 		.mount(SveltePages::PATH, SveltePages::ROUTES())
 		.mount("/", FileServer::from(svelte_path.as_str()));
 
