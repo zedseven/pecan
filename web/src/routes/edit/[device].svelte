@@ -1,13 +1,14 @@
 <script lang="ts">
 	import navBar from '../../components/navBar.svelte';
 	import editDevice from '../../components/editDevice.svelte';
+	import { appNameCased } from '../../constants';
 	import { page } from '$app/stores';
 
 	let device = $page.params['device'];
 </script>
 
 <svelte:head>
-	<title>Editing Device {device}</title>
+	<title>Editing Device {device} - {appNameCased}</title>
 </svelte:head>
 
 <svelte:component this={navBar} />

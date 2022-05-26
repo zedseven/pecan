@@ -180,7 +180,7 @@
 					</tr>
 				{/if}
 				<tr class="unprintable">
-					<td><label for="location">Location: </label></td>
+					<td><label for="location" class="block">Location: </label></td>
 					<td>
 						{#if viewMode}
 							<span class="detailEntry">{emptyIfNull(locationsMap[deviceData.locationId])}</span>
@@ -198,7 +198,7 @@
 				{#each definitions.columnDefinitions as columnDefinition}
 					<tr class:unprintable={!columnDefinition[0].showOnLabels}>
 						<td>
-							<label for="column{columnDefinition[0].id}">
+							<label for="column{columnDefinition[0].id}" class="block">
 								{columnDefinition[0].name}:
 							</label>
 						</td>

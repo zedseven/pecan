@@ -4,6 +4,7 @@
 	import responseError from '../components/responseError.svelte';
 	import couldntConnect from '../components/couldntConnect.svelte';
 	import navBar from '../components/navBar.svelte';
+	import { appNameCased } from '../constants';
 	import { fetchDefinitions } from '../stores';
 	import { Ok } from '../util';
 
@@ -23,7 +24,7 @@
 </script>
 
 <svelte:head>
-	<title>Admin</title>
+	<title>Admin - {appNameCased}</title>
 </svelte:head>
 
 <svelte:component this={navBar} />

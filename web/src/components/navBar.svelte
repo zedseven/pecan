@@ -59,6 +59,7 @@
 	#primary {
 		display: inline-block;
 		width: 20%;
+		min-width: 10em;
 		vertical-align: middle;
 	}
 	#secondary {

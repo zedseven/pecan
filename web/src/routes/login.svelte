@@ -1,10 +1,11 @@
 <script lang="ts">
 	// Imports
 	import navBar from '../components/navBar.svelte';
-	import { Ok, postData } from '../util';
 	import loading from '../components/loading.svelte';
 	import responseError from '../components/responseError.svelte';
 	import couldntConnect from '../components/couldntConnect.svelte';
+	import { appNameCased } from '../constants';
+	import { Ok, postData } from '../util';
 
 	// Component Data
 	let username = '';
@@ -41,7 +42,7 @@
 </script>
 
 <svelte:head>
-	<title>Log In</title>
+	<title>Log In - {appNameCased}</title>
 </svelte:head>
 
 <svelte:component this={navBar} />
@@ -55,20 +56,16 @@
 				<p>{errorMessage}</p>
 			{/if}
 			<form on:submit|preventDefault={onSubmit} method="post">
-				<label for="username">User: </label><input
-					bind:value={username}
-					id="username"
-					type="text"
-					required={true}
-				/>
-				<br />
-				<label for="password">Password: </label><input
-					bind:value={password}
-					id="password"
-					type="password"
-					required={true}
-				/>
-				<br />
+				<table>
+					<tr class="noHoverDarken">
+						<td><label for="username" class="block">User: </label></td>
+						<td><input bind:value={username} id="username" type="text" required={true} /></td>
+					</tr>
+					<tr class="noHoverDarken">
+						<td><label for="password" class="block">Password: </label></td>
+						<td><input bind:value={password} id="password" type="password" required={true} /></td>
+					</tr>
+				</table>
 				<input type="submit" value="Log In" />
 			</form>
 		{:else}
