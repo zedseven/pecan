@@ -65,10 +65,11 @@ pub struct LdapSettings {
 	///
 	/// This user is used to search for users and perform authentication.
 	pub reader: LdapReaderSettings,
-	/// The base to start the search for users from.
+	/// The bases to start the search for users from.
 	///
-	/// This should be as far down the tree as possible.
-	pub search_base: String,
+	/// Each one should be as far down the tree as possible. (not the whole
+	/// system, just the specific groups who need access)
+	pub search_bases: Vec<String>,
 }
 
 /// The type of LDAP server that's being connected-to.

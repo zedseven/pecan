@@ -24,9 +24,10 @@ server_url = "ldap://127.0.0.1:389"
 # The server type - either plain LDAP or Active Directory. Set it to "AD" for Active Directory support.
 # This setting is important because while AD can work over LDAP, it uses a different schema.
 type = "LDAP"
-# The base to start the search for users from.
-# This should be as far down the tree as possible.
-search_base = "dc=example,dc=com"
+# The bases to start the search for users from.
+# Each one should be as far down the tree as possible. (not the whole system, just the specific groups who need access)
+# Example: ["ou=Group1,dc=example,dc=com", "ou=Group2,dc=example,dc=com"]
+search_bases = ["dc=example,dc=com"]
 
 # LDAP TLS settings.
 [default.ldap.tls]

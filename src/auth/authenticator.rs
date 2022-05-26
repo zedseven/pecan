@@ -1,4 +1,6 @@
 // Uses
+use std::cmp::Ordering;
+
 use ldap3::{LdapConnAsync, LdapConnSettings, Scope, SearchEntry};
 
 use crate::{
@@ -25,8 +27,8 @@ pub struct LdapAuthenticator {
 	pub reader_dn: String,
 	/// The password to bind to the reader user.
 	pub reader_password: String,
-	/// The base to search in when searching a provided username.
-	pub search_base: String,
+	/// The bases to search in when searching a provided username.
+	pub search_bases: Vec<String>,
 	/// The attribute used to identify users. (what is searched-for when a user
 	/// provides their username)
 	///
@@ -49,7 +51,7 @@ impl TryFrom<&LdapSettings> for LdapAuthenticator {
 			verify_tls_certificate: config.tls.verify_certificates,
 			reader_dn: config.reader.distinguished_name.clone(),
 			reader_password: config.reader.password.clone(),
-			search_base: config.search_base.clone(),
+			search_bases: config.search_bases.clone(),
 			user_identifier: match config.r#type {
 				LdapServerType::Ldap => "uid",
 				LdapServerType::ActiveDirectory => "sAMAccountName",
@@ -95,42 +97,54 @@ impl LdapAuthenticator {
 			.success()
 			.map_err(|_| "unable to bind to the reader user")?;
 
-		// Search for the given username
-		let (rs, _res) = ldap
-			.search(
-				self.search_base.as_str(),
-				Scope::Subtree,
-				format!("({}={})", self.user_identifier, username).as_str(),
-				Vec::<&str>::new(),
-			)
-			.await
-			.map_err(|_| "unable to attempt a search operation")?
-			.success()
-			.map_err(|_| "unable to find a user by the specified username")?;
-		// Verify the result
-		if rs.len() != 1 {
-			return Ok(None);
+		// Search for the given username in the list of search bases
+		// The first single user found in a search base is used to attempt to bind
+		let mut found_user = None;
+		for search_base in &self.search_bases {
+			let (rs, _res) = ldap
+				.search(
+					search_base.as_str(),
+					Scope::Subtree,
+					format!("({}={})", self.user_identifier, username).as_str(),
+					Vec::<&str>::new(),
+				)
+				.await
+				.map_err(|_| "unable to attempt a search operation")?
+				.success()
+				.map_err(|_| "unable to find a user by the specified username")?;
+			// Verify the result
+			match rs.len().cmp(&1) {
+				Ordering::Greater => return Ok(None),
+				Ordering::Equal => {
+					found_user = Some(SearchEntry::construct(rs[0].clone()));
+					break;
+				}
+				Ordering::Less => continue,
+			}
 		}
-		let user_entry = SearchEntry::construct(rs[0].clone());
 		// dbg!(&user_entry);
 
-		// Attempt to bind to the found user with the provided password - this is what
-		// actually does the authentication
-		let success = ldap
-			.simple_bind(user_entry.dn.as_str(), password)
-			.await
-			.map_err(|_| "unable to attempt a bind operation")?
-			.success()
-			.is_ok();
+		if let Some(user_entry) = found_user {
+			// Attempt to bind to the found user with the provided password - this is what
+			// actually does the authentication
+			let success = ldap
+				.simple_bind(user_entry.dn.as_str(), password)
+				.await
+				.map_err(|_| "unable to attempt a bind operation")?
+				.success()
+				.is_ok();
 
-		// Unbind the handle
-		ldap.unbind()
-			.await
-			.map_err(|_| "unable to unbind the handle")?;
+			// Unbind the handle
+			ldap.unbind()
+				.await
+				.map_err(|_| "unable to unbind the handle")?;
 
-		// Return the result
-		if success {
-			Ok(Some(user_entry.dn))
+			// Return the result
+			if success {
+				Ok(Some(user_entry.dn))
+			} else {
+				Ok(None)
+			}
 		} else {
 			Ok(None)
 		}
