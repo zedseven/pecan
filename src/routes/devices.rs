@@ -115,7 +115,8 @@ pub struct ValueExistsQuery {
 
 /// Fetches the column definitions and locations.
 #[get("/definitions")]
-pub async fn get_definitions(_user: &AuthedUser, conn: DbConn) -> Result<JsonValue, Error> {
+pub async fn get_definitions(user: &AuthedUser, conn: DbConn) -> Result<JsonValue, Error> {
+	let user_clone = user.0.clone();
 	conn.run(move |c| {
 		// Uses
 		use schema::{
@@ -151,7 +152,9 @@ pub async fn get_definitions(_user: &AuthedUser, conn: DbConn) -> Result<JsonVal
 			.load::<LocationDefinition<'_>>(c)
 			.with_context("unable to load the locations")?;
 
-		Ok(json!({ "columnDefinitions": column_results, "locations": location_results }))
+		Ok(
+			json!({ "currentUser": user_clone, "columnDefinitions": column_results, "locations": location_results }),
+		)
 	})
 	.await
 }

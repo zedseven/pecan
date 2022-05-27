@@ -22,11 +22,11 @@ use crate::db::{
 };
 
 /// The request guard that verifies the user has a valid login token.
-pub struct AuthedUser(User);
+pub struct AuthedUser(pub User);
 
 /// Identical to [`AuthedUser`], but it forwards on failure. This allows for
 /// Rocket to serve redirects on user pages that require authentication.
-pub struct AuthedUserForwarding(User);
+pub struct AuthedUserForwarding(pub User);
 
 /// The error type for [`AuthedUser`] failures.
 #[derive(Debug, Copy, Clone)]

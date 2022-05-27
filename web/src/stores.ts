@@ -49,6 +49,11 @@ export const fetchDefinitions = async () => {
 				// console.log('Definitions have been fetched.');
 				if (responseData.ok) {
 					definitions.set(responseData.value);
+
+					// Set the active location to the authed user
+					// This is a little gross, but there's no point in removing
+					// $selectedLocation if later on an option to have no auth will be added
+					selectedLocation.set(responseData.value.currentUser.associatedLocationId);
 				}
 				// console.log(responseData);
 				return responseData;

@@ -27,13 +27,13 @@
 		</a>
 	</div>
 	<div id="secondary">
-		<label for="locationSelector">Location: </label>
+		<!--<label for="locationSelector">Location: </label>
 		<svelte:component
 			this={locationSelector}
 			bind:value={$selectedLocation}
 			id="locationSelector"
 			emptyValueLabel="-- Your Location --"
-		/>
+		/>-->
 		<p class="headerInfo">{projectVersion}</p>
 	</div>
 </header>
@@ -58,8 +58,7 @@
 	}
 	#primary {
 		display: inline-block;
-		width: 20%;
-		min-width: 10em;
+		min-width: 15em;
 		vertical-align: middle;
 	}
 	#secondary {
@@ -78,7 +77,7 @@
 	#title {
 		display: inline-block;
 		vertical-align: middle;
-		margin: 0;
+		margin: 0 1em 0 0;
 		text-transform: lowercase;
 	}
 	.headerInfo {

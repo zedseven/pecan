@@ -14,7 +14,7 @@ use super::{enums::UserSource, schema::*};
 
 // Models
 
-#[derive(Identifiable, Queryable, Serialize, Deserialize, Debug)]
+#[derive(Identifiable, Queryable, Serialize, Deserialize, Debug, Clone)]
 #[diesel(table_name = user_info)]
 #[serde(rename_all = "camelCase")]
 pub struct User {
@@ -24,14 +24,14 @@ pub struct User {
 	pub display_name: String,
 	pub associated_location_id: Option<i32>,
 }
-#[derive(Insertable, Debug)]
+#[derive(Insertable, Debug, Clone)]
 #[diesel(table_name = user_info)]
 pub struct UserNew {
 	pub source: UserSource,
 	pub unique_identifier: String,
 	pub display_name: String,
 }
-#[derive(Associations, Identifiable, Queryable, Serialize, Deserialize, Debug)]
+#[derive(Associations, Identifiable, Queryable, Serialize, Deserialize, Debug, Clone)]
 #[diesel(table_name = tokens, belongs_to(User, foreign_key = user_id))]
 #[serde(rename_all = "camelCase")]
 pub struct Token<'a> {
@@ -41,14 +41,14 @@ pub struct Token<'a> {
 	pub expires: NaiveDateTime,
 	pub valid: bool,
 }
-#[derive(Insertable, Debug)]
+#[derive(Insertable, Debug, Clone)]
 #[diesel(table_name = tokens)]
 pub struct TokenNew<'a> {
 	pub user_id: i32,
 	pub value: Cow<'a, str>,
 	pub expires: NaiveDateTime,
 }
-#[derive(Identifiable, Queryable, Serialize, Deserialize, Debug)]
+#[derive(Identifiable, Queryable, Serialize, Deserialize, Debug, Clone)]
 #[diesel(table_name = column_definitions)]
 #[serde(rename_all = "camelCase")]
 pub struct ColumnDefinition<'a> {
@@ -61,7 +61,7 @@ pub struct ColumnDefinition<'a> {
 	pub exclusively_possible_values: bool,
 	pub default_value_id: Option<i32>,
 }
-#[derive(Insertable, Debug)]
+#[derive(Insertable, Debug, Clone)]
 #[diesel(table_name = column_definitions)]
 pub struct ColumnDefinitionNew<'a> {
 	pub name: Cow<'a, str>,
@@ -72,7 +72,7 @@ pub struct ColumnDefinitionNew<'a> {
 	pub exclusively_possible_values: bool,
 	pub default_value_id: Option<i32>,
 }
-#[derive(Associations, Identifiable, Queryable, Serialize, Deserialize, Debug)]
+#[derive(Associations, Identifiable, Queryable, Serialize, Deserialize, Debug, Clone)]
 #[diesel(table_name = column_possible_values, belongs_to(ColumnDefinitionSelected<'_>, foreign_key = column_definition_id))]
 #[serde(rename_all = "camelCase")]
 pub struct ColumnPossibleValue<'a> {
@@ -80,27 +80,27 @@ pub struct ColumnPossibleValue<'a> {
 	pub column_definition_id: i32,
 	pub value: Cow<'a, str>,
 }
-#[derive(Insertable, Debug)]
+#[derive(Insertable, Debug, Clone)]
 #[diesel(table_name = column_possible_values)]
 pub struct ColumnPossibleValueNew<'a> {
 	pub column_definition_id: i32,
 	pub value: Cow<'a, str>,
 }
 
-#[derive(Identifiable, Queryable, Serialize, Deserialize, Debug)]
+#[derive(Identifiable, Queryable, Serialize, Deserialize, Debug, Clone)]
 #[diesel(table_name = locations)]
 #[serde(rename_all = "camelCase")]
 pub struct LocationDefinition<'a> {
 	pub id: i32,
 	pub name: Cow<'a, str>,
 }
-#[derive(Insertable, Debug)]
+#[derive(Insertable, Debug, Clone)]
 #[diesel(table_name = locations)]
 pub struct LocationDefinitionNew<'a> {
 	pub name: Cow<'a, str>,
 }
 
-#[derive(Identifiable, Queryable, Serialize, Deserialize, Debug)]
+#[derive(Identifiable, Queryable, Serialize, Deserialize, Debug, Clone)]
 #[diesel(table_name = device_key_info)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceKeyInfo<'a> {
@@ -109,7 +109,7 @@ pub struct DeviceKeyInfo<'a> {
 	pub location_id: i32,
 	pub last_updated: NaiveDateTime,
 }
-#[derive(Insertable, Debug)]
+#[derive(Insertable, Debug, Clone)]
 #[diesel(table_name = device_key_info)]
 pub struct DeviceKeyInfoNew<'a> {
 	pub device_id: Cow<'a, str>,
@@ -117,7 +117,7 @@ pub struct DeviceKeyInfoNew<'a> {
 	pub last_updated: NaiveDateTime,
 }
 
-#[derive(Associations, Identifiable, Queryable, Serialize, Deserialize, Debug)]
+#[derive(Associations, Identifiable, Queryable, Serialize, Deserialize, Debug, Clone)]
 #[diesel(table_name = device_data, belongs_to(DeviceInfo<'_>, foreign_key = device_key_info_id))]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceData<'a> {
@@ -126,7 +126,7 @@ pub struct DeviceData<'a> {
 	pub column_definition_id: i32,
 	pub data_value: Cow<'a, str>,
 }
-#[derive(Insertable, Debug)]
+#[derive(Insertable, Debug, Clone)]
 #[diesel(table_name = device_data)]
 pub struct DeviceDataNew<'a> {
 	pub device_key_info_id: i32,
@@ -134,7 +134,7 @@ pub struct DeviceDataNew<'a> {
 	pub data_value: Cow<'a, str>,
 }
 
-#[derive(Associations, Identifiable, Queryable, Serialize, Deserialize, Debug)]
+#[derive(Associations, Identifiable, Queryable, Serialize, Deserialize, Debug, Clone)]
 #[diesel(table_name = device_components, belongs_to(DeviceInfo<'_>, foreign_key = device_key_info_id))]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceComponent<'a> {
@@ -143,7 +143,7 @@ pub struct DeviceComponent<'a> {
 	pub component_id: Cow<'a, str>,
 	pub component_type: Cow<'a, str>,
 }
-#[derive(Insertable, Debug)]
+#[derive(Insertable, Debug, Clone)]
 #[diesel(table_name = device_components)]
 pub struct DeviceComponentNew<'a> {
 	pub device_key_info_id: i32,
