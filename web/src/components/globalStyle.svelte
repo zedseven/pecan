@@ -3,7 +3,7 @@
 		margin: 0;
 		padding: 0;
 		font-family: sans-serif;
-		font-size: 1.1em;
+		/* font-size: 1.1em; */
 	}
 
 	input,
