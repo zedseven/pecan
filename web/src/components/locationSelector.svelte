@@ -1,5 +1,6 @@
 <script lang="ts">
 	// Imports
+	import { appNameCased } from '../constants';
 	import { fetchDefinitions } from '../stores';
 
 	// Component Data
@@ -25,7 +26,13 @@
 
 {#await loadingPromise then loadingResult}
 	{#if loadingResult.ok}
-		<select {id} class={className} {required} bind:value>
+		<select
+			bind:value
+			{id}
+			class={className}
+			{required}
+			title="If you don't see the person you're looking for in the list, it's probably because they've never logged into {appNameCased}. Once they log in for the first time, they'll appear here."
+		>
 			<option value={null} disabled={disableEmptyValue}>{emptyValueLabel}</option>
 			{#each definitions.locations as location}
 				<option value={location.id}>{location.name}</option>
