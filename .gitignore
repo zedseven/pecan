@@ -23,6 +23,9 @@
 # Testing migrations
 /migrations/*_test*/
 
+# Backups directory
+/bak/
+
 # Local working files
 TODO.md
 SCRATCHPAD.md
