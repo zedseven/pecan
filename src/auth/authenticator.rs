@@ -99,7 +99,10 @@ impl LdapAuthenticator {
 		password: &str,
 	) -> Result<Option<AuthenticationReturn>, &'static str> {
 		// Validate the provided username - it can't contain certain special characters
-		if username.contains(&['*', '+']) {
+		// https://cheatsheetseries.owasp.org/cheatsheets/LDAP_Injection_Prevention_Cheat_Sheet.html
+		// https://datatracker.ietf.org/doc/html/rfc4515#section-3
+		// The `@` is also excluded because email address logins aren't supported.
+		if username.contains(&['*', '+', '(', ')', '\\', '@']) {
 			return Ok(None);
 		}
 

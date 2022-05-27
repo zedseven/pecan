@@ -58,8 +58,17 @@
 			<form on:submit|preventDefault={onSubmit} method="post">
 				<table>
 					<tr class="noHoverDarken">
-						<td><label for="username" class="block">User: </label></td>
-						<td><input bind:value={username} id="username" type="text" required={true} /></td>
+						<td><label for="username" class="block">User (not email): </label></td>
+						<td>
+							<input
+								bind:value={username}
+								id="username"
+								type="text"
+								required={true}
+								pattern="^[^@]+$"
+								title="Use your login username, not your email address"
+							/>
+						</td>
 					</tr>
 					<tr class="noHoverDarken">
 						<td><label for="password" class="block">Password: </label></td>
