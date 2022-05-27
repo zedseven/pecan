@@ -8,7 +8,7 @@
 	import datetime from '../components/datetime.svelte';
 	import checkoutButton from '../components/checkoutButton.svelte';
 	import locationSelector from '../components/locationSelector.svelte';
-	import { appNameCased } from '../constants';
+	import { appName } from '../constants';
 	import { fetchDefinitions } from '../stores';
 	import { Ok, postData, redirectIfNotLoggedIn, sanitiseObjectMapToArray } from '../util';
 
@@ -117,7 +117,7 @@
 </script>
 
 <svelte:head>
-	<title>{appNameCased}</title>
+	<title>{appName}</title>
 </svelte:head>
 
 <svelte:component this={navBar} />

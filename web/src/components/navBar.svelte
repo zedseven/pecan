@@ -1,6 +1,6 @@
 <script lang="ts">
 	// Imports
-	import { appName, projectVersion } from '../constants';
+	import { appNameLowercase, projectVersion } from '../constants';
 	import { selectedLocation } from '../stores';
 	import globalStyle from './globalStyle.svelte';
 	import locationSelector from './locationSelector.svelte';
@@ -23,7 +23,7 @@
 	<div id="primary">
 		<!-- prettier-ignore -->
 		<a href="/" id="titleLink">
-			<img src="/{logoFileName}" alt="logo" id="logo" /><h1 id="title">{appName}</h1>
+			<img src="/{logoFileName}" alt="logo" id="logo" /><h1 id="title">{appNameLowercase}</h1>
 		</a>
 	</div>
 	<div id="secondary">

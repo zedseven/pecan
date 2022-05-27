@@ -13,7 +13,7 @@
 	import { timeout } from '../util';
 	import { printSettings } from '../stores';
 	import editDeviceDetails from './editDeviceDetails.svelte';
-	import { appNameCased } from '../constants.js';
+	import { appName } from '../constants.js';
 
 	// Component Data
 	export let deviceId = null;
@@ -78,7 +78,7 @@
 				<div id="printHelp" class="smallerFont">
 					Make sure your margins are set to "None" in the browser popup.<br />
 					You may need to play with the settings below to get the labels<br />
-					to look right, but once they're set, <i>{appNameCased}</i> will remember them.<br /><br />
+					to look right, but once they're set, <i>{appName}</i> will remember them.<br /><br />
 					If you click the "Print" button when these settings are closed, the<br />
 					label slot will automatically move to the next so you don't have to.
 				</div>

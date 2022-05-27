@@ -4,7 +4,7 @@
 	import loading from '../components/loading.svelte';
 	import responseError from '../components/responseError.svelte';
 	import couldntConnect from '../components/couldntConnect.svelte';
-	import { appNameCased } from '../constants';
+	import { appName } from '../constants';
 	import { Ok, postData } from '../util';
 
 	// Component Data
@@ -42,7 +42,7 @@
 </script>
 
 <svelte:head>
-	<title>Log In - {appNameCased}</title>
+	<title>Log In - {appName}</title>
 </svelte:head>
 
 <svelte:component this={navBar} />
