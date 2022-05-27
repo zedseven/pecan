@@ -36,27 +36,49 @@
 		}
 
 		const searchUrl = '/api/devices/search';
-		return postData(searchUrl, inputData).then(async (searchResult) => {
-			// If there was an error, return it for processing below
-			if (!searchResult.ok) return searchResult;
-
-			// Store the results
-			deviceResults = searchResult.value.deviceResults;
-
-			return searchResult;
-		});
+		return postData(searchUrl, inputData).then(async (searchResult) =>
+			processSearchResult(searchResult, true),
+		);
 	};
 	const defaultSearch = async () => {
 		const searchUrl = '/api/devices/search/default';
-		return postData(searchUrl, null).then(async (searchResult) => {
-			// If there was an error, return it for processing below
-			if (!searchResult.ok) return searchResult;
+		return postData(searchUrl, null).then(processSearchResult);
+	};
 
-			// Store the results
-			deviceResults = searchResult.value.deviceResults;
+	const processSearchResult = async (searchResult, fillHoles = false) => {
+		// If there was an error, return it for processing below
+		if (!searchResult.ok) return searchResult;
 
-			return searchResult;
-		});
+		// Store the results
+		deviceResults = searchResult.value.deviceResults;
+
+		// Fill in holes if requested
+		if (fillHoles) fillResultHoles();
+
+		return searchResult;
+	};
+	// Fill in holes where there aren't device data entries (for columns that were added after the device was created)
+	const fillResultHoles = () => {
+		console.log(deviceResults);
+		for (let deviceResult of deviceResults) {
+			// The lengths match, there's no problem
+			if (deviceResult[1].length == definitions.columnDefinitions.length) continue;
+			// Otherwise, compare the entries to find holes
+			for (let index = 0; index < deviceResult[1].length; index++) {
+				// Compare the column definition IDs
+				if (deviceResult[1][index].columnDefinitionId == definitions.columnDefinitions[index][0].id)
+					continue;
+
+				// Fill the hole
+				deviceResult[1].splice(index, 0, {
+					id: null,
+					deviceKeyInfoId: deviceResult[1][index].deviceKeyInfoId,
+					columnDefinitionId: definitions.columnDefinitions[index][0].id,
+					dataValue: '',
+				});
+				index++;
+			}
+		}
 	};
 
 	const onSearch = async (event) => {
@@ -89,26 +111,7 @@
 			};
 		}
 
-		// Fill in holes where there aren't device data entries (for columns that were added after the device was created)
-		for (let deviceResult of deviceResults) {
-			// The lengths match, there's no problem
-			if (deviceResult[1].length == definitions.columnDefinitions.length) continue;
-			// Otherwise, compare the entries to find holes
-			for (let index = 0; index < deviceResult[1].length; index++) {
-				// Compare the column definition IDs
-				if (deviceResult[1][index].columnDefinitionId == definitions.columnDefinitions[index][0].id)
-					continue;
-
-				// Fill the hole
-				deviceResult[1].splice(index, 0, {
-					id: null,
-					deviceKeyInfoId: deviceResult[1][index].deviceKeyInfoId,
-					columnDefinitionId: definitions.columnDefinitions[index][0].id,
-					dataValue: '',
-				});
-				index++;
-			}
-		}
+		fillResultHoles();
 
 		return Ok({});
 	});
