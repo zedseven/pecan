@@ -79,7 +79,9 @@
 
 			return Ok({});
 		})
-		.then(() => {
+		.then((result) => {
+			if (!result.ok) return result;
+
 			isLoading = false;
 			return Ok({});
 		});

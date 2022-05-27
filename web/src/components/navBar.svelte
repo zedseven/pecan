@@ -48,13 +48,13 @@
 		right: 0;
 		z-index: 5;
 		box-sizing: border-box;
-		height: 60px;
+		height: 56px;
 		padding: 10px;
 		color: #ffffff;
 		background-color: #222222;
 	}
 	:global(#content) {
-		margin-top: 60px; /* Matching the height of #navBar */
+		margin-top: 56px; /* Matching the height of #navBar */
 	}
 	#primary {
 		display: inline-block;
@@ -77,7 +77,7 @@
 	#title {
 		display: inline-block;
 		vertical-align: middle;
-		margin: 0 1em 0 0;
+		margin: -3px 1em 0 0;
 		text-transform: lowercase;
 	}
 	.headerInfo {

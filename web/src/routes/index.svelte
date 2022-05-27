@@ -189,7 +189,7 @@
 									bind:currentLocationName={deviceResult[0].location}
 								/>
 							</td>
-							<td>
+							<td class="centerContents">
 								<svelte:component this={datetime} datetimeUtc={deviceResult[0].lastUpdated + 'Z'} />
 							</td>
 							<td class="centerContents monospace slightlyLargerFont">
