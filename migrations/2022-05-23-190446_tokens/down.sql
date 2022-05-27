@@ -1,3 +1,3 @@
-DROP TRIGGER 'remove_expired_tokens';
+DROP TRIGGER remove_expired_tokens;
 
-DROP TABLE 'tokens';
+DROP TABLE tokens;

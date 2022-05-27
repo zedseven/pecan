@@ -271,24 +271,24 @@ pub async fn search_devices(
 		// to the query.
 		let mut search_sql = String::from(
 			"SELECT
-			    'dki'.'id',
-			    'dki'.'device_id',
-			    'dki'.'location_id',
-			    'l'.'name' AS 'location',
-			    'dki'.'last_updated'
-			FROM 'device_key_info' AS 'dki'
-			INNER JOIN 'locations' AS 'l' ON 'l'.'id' = 'dki'.'location_id'
+			    dki.id,
+			    dki.device_id,
+			    dki.location_id,
+			    l.name AS location,
+			    dki.last_updated
+			FROM device_key_info AS dki
+			INNER JOIN locations AS l ON l.id = dki.location_id
 			WHERE
-			    'dki'.'device_id' LIKE ?
-			    AND (? IS NULL OR 'dki'.'location_id' = ?)\n",
+			    dki.device_id LIKE ?
+			    AND (? IS NULL OR dki.location_id = ?)\n",
 		);
 		let mut bind_params = Vec::new();
 		if search_column_data_is_present {
 			search_sql.push_str(
 				"AND ? = (SELECT
-	               COUNT('dd'.'id')
-	           FROM 'device_data' AS 'dd'
-	           WHERE 'dd'.'device_key_info_id' = 'dki'.'id' AND (",
+	               COUNT(dd.id)
+	           FROM device_data AS dd
+	           WHERE dd.device_key_info_id = dki.id AND (",
 			);
 			let mut first_entry = true;
 			for column_query in &search_query.column_data {
@@ -298,8 +298,7 @@ pub async fn search_devices(
 				if !first_entry {
 					search_sql.push_str(" OR ");
 				}
-				search_sql
-					.push_str("('dd'.'column_definition_id' = ? AND 'dd'.'data_value' LIKE ?)");
+				search_sql.push_str("(dd.column_definition_id = ? AND dd.data_value LIKE ?)");
 				bind_params.push((
 					column_query.column_definition_id,
 					format!("%{}%", column_query.data_value.as_str()),
@@ -308,7 +307,7 @@ pub async fn search_devices(
 			}
 			search_sql.push_str("))\n");
 		}
-		search_sql.push_str("ORDER BY 'dki'.'last_updated' DESC");
+		search_sql.push_str("ORDER BY dki.last_updated DESC");
 		// dbg!(&search_sql);
 		let mut device_key_info_query = sql_query(search_sql)
 			.into_boxed()
