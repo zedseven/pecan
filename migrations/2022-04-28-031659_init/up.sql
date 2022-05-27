@@ -7,7 +7,7 @@ CREATE TABLE 'column_definitions'
 	'show_in_main_page'           BOOLEAN             NOT NULL DEFAULT 1,
 	'show_on_labels'              BOOLEAN             NOT NULL DEFAULT 1,
 	'exclusively_possible_values' BOOLEAN             NOT NULL DEFAULT 0,
-	'default_value_id'            INTEGER             NULL,
+	'default_value_id'            INTEGER             NULL     DEFAULT NULL,
 	FOREIGN KEY ('default_value_id') REFERENCES 'column_possible_values' ('id')
 );
 
@@ -22,7 +22,7 @@ CREATE TABLE 'column_possible_values'
 CREATE TABLE 'locations'
 (
 	'id'   INTEGER PRIMARY KEY NOT NULL,
-	'name' TEXT                NOT NULL
+	'name' TEXT                NOT NULL UNIQUE
 );
 
 CREATE TABLE 'device_key_info'

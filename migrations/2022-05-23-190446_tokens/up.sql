@@ -1,10 +1,11 @@
 CREATE TABLE 'tokens'
 (
 	'id'      INTEGER PRIMARY KEY NOT NULL,
-	'user'    TEXT                NOT NULL,
+	'user_id' INTEGER             NOT NULL,
 	'value'   TEXT                NOT NULL,
 	'expires' TIMESTAMP           NOT NULL,
-	'valid'   BOOLEAN             NOT NULL DEFAULT 1
+	'valid'   BOOLEAN             NOT NULL DEFAULT 1,
+	FOREIGN KEY ('user_id') REFERENCES 'user_info' ('id')
 );
 
 -- Automatically removes bad tokens from the table
@@ -15,5 +16,5 @@ BEGIN
 	DELETE
 	FROM 'tokens'
 	WHERE strftime('%s', 'tokens'.'expires') < strftime('%s', 'now')
-	   OR 'tokens'.'valid' != 1;
+	   OR 'tokens'.'valid' = 0;
 END;

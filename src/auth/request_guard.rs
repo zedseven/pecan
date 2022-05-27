@@ -15,20 +15,18 @@ use rocket::{
 };
 
 use super::COOKIE_NAME;
-use crate::db::{models::Token, schema, DbConn};
+use crate::db::{
+	models::{User, USER},
+	schema,
+	DbConn,
+};
 
 /// The request guard that verifies the user has a valid login token.
-pub struct AuthedUser {
-	/// The Distinguished Name of the user.
-	pub dn: String,
-}
+pub struct AuthedUser(User);
 
 /// Identical to [`AuthedUser`], but it forwards on failure. This allows for
 /// Rocket to serve redirects on user pages that require authentication.
-pub struct AuthedUserForwarding {
-	/// The Distinguished Name of the user.
-	pub dn: String,
-}
+pub struct AuthedUserForwarding(User);
 
 /// The error type for [`AuthedUser`] failures.
 #[derive(Debug, Copy, Clone)]
@@ -45,9 +43,7 @@ impl<'r> FromRequest<'r> for &'r AuthedUser {
 
 	async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
 		let result = request
-			.local_cache_async(async {
-				validate_cookie(request, |dn| AuthedUser { dn: dn.to_owned() }).await
-			})
+			.local_cache_async(async { validate_cookie(request, AuthedUser).await })
 			.await;
 
 		match result {
@@ -68,9 +64,7 @@ impl<'r> FromRequest<'r> for &'r AuthedUserForwarding {
 
 	async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
 		let result = request
-			.local_cache_async(async {
-				validate_cookie(request, |dn| AuthedUserForwarding { dn: dn.to_owned() }).await
-			})
+			.local_cache_async(async { validate_cookie(request, AuthedUserForwarding).await })
 			.await;
 
 		match result {
@@ -86,7 +80,7 @@ async fn validate_cookie<T, F>(
 	build_return_value: F,
 ) -> Result<T, AuthedUserError>
 where
-	F: FnOnce(&str) -> T,
+	F: FnOnce(User) -> T,
 {
 	match request.cookies().get_private(COOKIE_NAME) {
 		None => {
@@ -107,7 +101,7 @@ where
 				.map_err(|_| AuthedUserError::DatabaseError)?;
 
 			if let Some(user) = validation_result {
-				Ok(build_return_value(user.as_str()))
+				Ok(build_return_value(user))
 			} else {
 				remove_cookie(request);
 				Err(AuthedUserError::InvalidToken)
@@ -117,16 +111,19 @@ where
 }
 
 /// Verifies that a token is valid.
-fn token_is_valid(conn: &mut SqliteConnection, token: &str) -> Result<Option<String>, DieselError> {
-	use schema::tokens::dsl::*;
+fn token_is_valid(conn: &mut SqliteConnection, token: &str) -> Result<Option<User>, DieselError> {
+	use schema::{tokens::dsl::*, user_info::dsl::*};
 
-	let token_result = tokens
+	let user_result = tokens
+		.inner_join(user_info)
 		.filter(value.eq(token))
 		.filter(expires.gt(Utc::now().naive_utc()))
 		.filter(valid.eq(true))
-		.get_result::<Token<'_>>(conn)
+		.select(USER)
+		.get_result::<User>(conn)
 		.optional()?;
-	Ok(token_result.map(|t| t.user.to_string()))
+
+	Ok(user_result)
 }
 
 /// Removes the token cookie if present.

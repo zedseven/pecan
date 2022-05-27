@@ -3,12 +3,13 @@ use chrono::Duration as ChronoDuration;
 use rocket::time::Duration as TimeDuration;
 
 // Exports
-pub use self::{authenticator::*, request_guard::*, tokens::*};
+pub use self::{authenticator::*, request_guard::*, tokens::*, users::*};
 
 // Modules
 mod authenticator;
 mod request_guard;
 mod tokens;
+mod users;
 
 // Constants
 /// The name of the cookie used to store the access token.

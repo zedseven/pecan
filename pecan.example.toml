@@ -28,6 +28,8 @@ type = "LDAP"
 # Each one should be as far down the tree as possible. (not the whole system, just the specific groups who need access)
 # Example: ["ou=Group1,dc=example,dc=com", "ou=Group2,dc=example,dc=com"]
 search_bases = ["dc=example,dc=com"]
+# The LDAP attribute that stores the user display name. (first & last name)
+user_display_name_attribute = "cn"
 
 # LDAP TLS settings.
 [default.ldap.tls]

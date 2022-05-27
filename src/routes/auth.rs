@@ -12,6 +12,7 @@ use rocket::{
 use super::Routable;
 use crate::{
 	auth::{
+		create_user_if_new,
 		generate_token_for_user,
 		get_token_cookie_valid_duration,
 		AuthedUserForwarding,
@@ -62,13 +63,18 @@ pub async fn authenticate(
 	if auth_result.is_none() {
 		return Err(UserError::BadRequest("Invalid credentials.").into());
 	}
-	// let user_dn = auth_result.unwrap();
+	let authed_user = auth_result.unwrap();
+
+	// Fetch the user ID and create the new user if necessary
+	let user_id = conn
+		.run(move |c| create_user_if_new(c, authed_user.into()))
+		.await
+		.with_context("failed to get (new) user information")?;
 
 	// If auth was successful, generate the new token and set a cookie for the user
 	let token_valid_days = config.token_valid_days;
-	let username_clone = auth_data.username.clone();
 	let new_token = conn
-		.run(move |c| generate_token_for_user(c, username_clone.as_str().trim(), token_valid_days))
+		.run(move |c| generate_token_for_user(c, user_id, token_valid_days))
 		.await
 		.with_context("failed to generate the new token")?;
 	let mut new_cookie = Cookie::new(COOKIE_NAME, new_token);

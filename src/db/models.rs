@@ -10,16 +10,33 @@ use diesel::{
 	NullableExpressionMethods,
 };
 
-use super::schema::*;
+use super::{enums::UserSource, schema::*};
 
 // Models
 
 #[derive(Identifiable, Queryable, Serialize, Deserialize, Debug)]
-#[diesel(table_name = tokens)]
+#[diesel(table_name = user_info)]
+#[serde(rename_all = "camelCase")]
+pub struct User {
+	pub id: i32,
+	pub source: UserSource,
+	pub unique_identifier: String, // Uses owned data because it needs to be passed around
+	pub display_name: String,
+	pub associated_location_id: Option<i32>,
+}
+#[derive(Insertable, Debug)]
+#[diesel(table_name = user_info)]
+pub struct UserNew {
+	pub source: UserSource,
+	pub unique_identifier: String,
+	pub display_name: String,
+}
+#[derive(Associations, Identifiable, Queryable, Serialize, Deserialize, Debug)]
+#[diesel(table_name = tokens, belongs_to(User, foreign_key = user_id))]
 #[serde(rename_all = "camelCase")]
 pub struct Token<'a> {
 	pub id: i32,
-	pub user: Cow<'a, str>,
+	pub user_id: i32,
 	pub value: Cow<'a, str>,
 	pub expires: NaiveDateTime,
 	pub valid: bool,
@@ -27,7 +44,7 @@ pub struct Token<'a> {
 #[derive(Insertable, Debug)]
 #[diesel(table_name = tokens)]
 pub struct TokenNew<'a> {
-	pub user: Cow<'a, str>,
+	pub user_id: i32,
 	pub value: Cow<'a, str>,
 	pub expires: NaiveDateTime,
 }
@@ -141,6 +158,16 @@ macro_rules! select_def {
 		pub type $type_label = $def;
 		pub const $select_name: $type_label = $def;
 	};
+}
+
+select_def! {
+	USER: UserSelect = (
+		user_info::id,
+		user_info::source,
+		user_info::unique_identifier,
+		user_info::display_name,
+		user_info::associated_location_id,
+	)
 }
 
 select_def! {

@@ -24,7 +24,7 @@ use crate::{
 /// token's value.
 pub fn generate_token_for_user(
 	conn: &mut SqliteConnection,
-	token_user: &str,
+	token_user_id: i32,
 	token_valid_days: u32,
 ) -> Result<String, Error> {
 	// Uses
@@ -39,7 +39,7 @@ pub fn generate_token_for_user(
 		// Insert the new device entry
 		insert_into(tokens)
 			.values(TokenNew {
-				user: Cow::from(token_user),
+				user_id: token_user_id,
 				value: Cow::from(token_value.as_str()),
 				expires: (Utc::now() + get_token_valid_duration(token_valid_days)).naive_utc(),
 			})

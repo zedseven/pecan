@@ -70,6 +70,9 @@ pub struct LdapSettings {
 	/// Each one should be as far down the tree as possible. (not the whole
 	/// system, just the specific groups who need access)
 	pub search_bases: Vec<String>,
+	/// The LDAP attribute that stores the user display name. (first & last
+	/// name)
+	pub user_display_name_attribute: String,
 }
 
 /// The type of LDAP server that's being connected-to.

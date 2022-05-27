@@ -5,6 +5,7 @@ use ldap3::{LdapConnAsync, LdapConnSettings, Scope, SearchEntry};
 
 use crate::{
 	config::{LdapServerType, LdapSettings},
+	db::{enums::UserSource, models::UserNew},
 	error::InternalError,
 };
 
@@ -29,22 +30,44 @@ pub struct LdapAuthenticator {
 	pub reader_password: String,
 	/// The bases to search in when searching a provided username.
 	pub search_bases: Vec<String>,
-	/// The attribute used to identify users. (what is searched-for when a user
-	/// provides their username)
+	/// The LDAP attribute used to identify users. (what is searched-for when a
+	/// user provides their username)
 	///
 	/// This varies depending on whether it's a plain LDAP server, or an Active
 	/// Directory server. LDAP uses `uid`, but AD uses `sAMAccountName` (user
 	/// identifier) or `userPrincipalName` (user identifier @ domain)
-	pub user_identifier: String,
+	pub user_identifier_attribute: String,
+	/// The LDAP attribute that stores the user display name.
+	pub display_name_attribute: String,
+}
+
+/// The return value of an LDAP authentication.
+pub struct AuthenticationReturn {
+	/// The DN of the user.
+	distinguished_name: String,
+	/// The `uid` on LDAP, and `sAMAccountName` on AD.
+	unique_identifier: String,
+	/// The display name for the user. Typically first & last name.
+	display_name: String,
 }
 
 impl TryFrom<&LdapSettings> for LdapAuthenticator {
 	type Error = InternalError;
 
 	fn try_from(config: &LdapSettings) -> Result<Self, Self::Error> {
+		// Config validation
+		if config.server_url.is_empty()
+			|| config.reader.distinguished_name.is_empty()
+			|| config.search_bases.is_empty()
+			|| config.user_display_name_attribute.is_empty()
+		{
+			return Err("one or more values is empty".into());
+		}
 		if !config.tls.enabled && config.server_url.starts_with("ldaps:") {
 			return Err("TLS is disabled but the specified URL uses LDAP over SSL".into());
 		}
+
+		// Load the config
 		Ok(Self {
 			server_url: config.server_url.clone(),
 			use_tls: config.tls.enabled,
@@ -52,11 +75,12 @@ impl TryFrom<&LdapSettings> for LdapAuthenticator {
 			reader_dn: config.reader.distinguished_name.clone(),
 			reader_password: config.reader.password.clone(),
 			search_bases: config.search_bases.clone(),
-			user_identifier: match config.r#type {
+			user_identifier_attribute: match config.r#type {
 				LdapServerType::Ldap => "uid",
 				LdapServerType::ActiveDirectory => "sAMAccountName",
 			}
 			.to_owned(),
+			display_name_attribute: config.user_display_name_attribute.clone(),
 		})
 	}
 }
@@ -71,13 +95,15 @@ impl LdapAuthenticator {
 	/// contained value is the user's distinguished name on the server.
 	pub async fn authenticate_user(
 		&self,
-		username: &str,
+		mut username: &str,
 		password: &str,
-	) -> Result<Option<String>, &'static str> {
+	) -> Result<Option<AuthenticationReturn>, &'static str> {
 		// Validate the provided username - it can't contain certain special characters
 		if username.contains(&['*', '+']) {
 			return Ok(None);
 		}
+
+		username = username.trim();
 
 		// Start the connection
 		let (conn, mut ldap) = LdapConnAsync::with_settings(
@@ -105,7 +131,7 @@ impl LdapAuthenticator {
 				.search(
 					search_base.as_str(),
 					Scope::Subtree,
-					format!("({}={})", self.user_identifier, username).as_str(),
+					format!("({}={})", self.user_identifier_attribute, username).as_str(),
 					Vec::<&str>::new(),
 				)
 				.await
@@ -122,9 +148,10 @@ impl LdapAuthenticator {
 				Ordering::Less => continue,
 			}
 		}
-		// dbg!(&user_entry);
 
 		if let Some(user_entry) = found_user {
+			// dbg!(&user_entry);
+
 			// Attempt to bind to the found user with the provided password - this is what
 			// actually does the authentication
 			let success = ldap
@@ -139,14 +166,42 @@ impl LdapAuthenticator {
 				.await
 				.map_err(|_| "unable to unbind the handle")?;
 
+			// Fetch the user display name
+			let display_name = match &user_entry.attrs.get(&self.display_name_attribute) {
+				Some(attribute_vec) if attribute_vec.len() == 1 => &attribute_vec[0],
+				Some(_) => {
+					// This *could* be an error, but that would mean the system would return an
+					// internal error whenever someone tries to log in without a display name set.
+					eprintln!("user has no display name: {}", username);
+					return Ok(None);
+				}
+				None => {
+					return Err("unable to find the user display name with the provided attribute")
+				}
+			};
+
 			// Return the result
 			if success {
-				Ok(Some(user_entry.dn))
+				Ok(Some(AuthenticationReturn {
+					distinguished_name: user_entry.dn,
+					unique_identifier: username.to_owned(),
+					display_name: display_name.trim().to_owned(),
+				}))
 			} else {
 				Ok(None)
 			}
 		} else {
 			Ok(None)
+		}
+	}
+}
+
+impl From<AuthenticationReturn> for UserNew {
+	fn from(ret: AuthenticationReturn) -> Self {
+		Self {
+			source: UserSource::Ldap,
+			unique_identifier: ret.unique_identifier,
+			display_name: ret.display_name,
 		}
 	}
 }

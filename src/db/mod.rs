@@ -5,6 +5,7 @@ use rocket::{Build, Rocket};
 use rocket_sync_db_pools::database;
 
 // Modules
+pub mod enums;
 pub mod functions;
 pub mod models;
 pub mod schema;
@@ -28,12 +29,17 @@ pub async fn init(rocket: Rocket<Build>) -> Result<Rocket<Build>, Rocket<Build>>
 	};
 
 	if conn
-		.run(|c| c.run_pending_migrations(MIGRATIONS).is_ok())
+		.run(|c| match c.run_pending_migrations(MIGRATIONS) {
+			Ok(_) => true,
+			Err(e) => {
+				eprintln!("failed to run embedded database migrations: {:?}", e);
+				false
+			}
+		})
 		.await
 	{
 		Ok(rocket)
 	} else {
-		eprintln!("failed to run embedded database migrations");
 		Err(rocket)
 	}
 }
