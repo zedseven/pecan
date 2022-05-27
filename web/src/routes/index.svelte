@@ -59,7 +59,6 @@
 	};
 	// Fill in holes where there aren't device data entries (for columns that were added after the device was created)
 	const fillResultHoles = () => {
-		console.log(deviceResults);
 		for (let deviceResult of deviceResults) {
 			// The lengths match, there's no problem
 			if (deviceResult[1].length == definitions.columnDefinitions.length) continue;
