@@ -3,7 +3,7 @@
 CREATE TABLE column_definitions
 (
 	id                          INTEGER PRIMARY KEY NOT NULL,
-	name                        TEXT                NOT NULL,
+	name                        TEXT                NOT NULL UNIQUE,
 	not_null                    BOOLEAN             NOT NULL DEFAULT 0,
 	unique_values               BOOLEAN             NOT NULL DEFAULT 0,
 	show_in_main_page           BOOLEAN             NOT NULL DEFAULT 1,
@@ -70,7 +70,7 @@ CREATE TABLE tokens
 (
 	id      INTEGER PRIMARY KEY NOT NULL,
 	user_id INTEGER             NOT NULL,
-	value   TEXT                NOT NULL,
+	value   TEXT                NOT NULL UNIQUE,
 	expires TIMESTAMP           NOT NULL,
 	valid   BOOLEAN             NOT NULL DEFAULT 1,
 	FOREIGN KEY (user_id) REFERENCES user_info (id)
