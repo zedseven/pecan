@@ -7,10 +7,6 @@
 	let device = $page.params['device'];
 </script>
 
-<svelte:head>
-	<title>Editing Device {device} - {appName}</title>
-</svelte:head>
-
 <svelte:component this={navBar} />
 
 <svelte:component this={editDevice} deviceId={device} />

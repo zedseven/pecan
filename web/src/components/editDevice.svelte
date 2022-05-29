@@ -13,13 +13,14 @@
 	import { timeout } from '../util';
 	import { printSettings } from '../stores';
 	import editDeviceDetails from './editDeviceDetails.svelte';
-	import { appName } from '../constants.js';
+	import { appName } from '../constants';
 
 	// Component Data
 	export let deviceId = null;
 	let viewMode = deviceId ? ViewMode.View : ViewMode.Edit;
 	let printSettingsVisible = false;
 	let isLoading = true;
+	let title;
 
 	// Print the label
 	const printLabel = async () => {
@@ -58,142 +59,154 @@
 		printSettingsVisible = !printSettingsVisible;
 	};
 
+	$: if (deviceId) {
+		title = (viewMode === ViewMode.Edit ? 'Editing' : 'Viewing') + ' Device ' + deviceId;
+	} else {
+		title = 'Add New Device';
+	}
 	$: slotIndex = $printSettings.slot - 1;
 	$: rowsBeforeSlot = Math.floor(slotIndex / $printSettings.horizontalLabelCount);
 	$: columnsBeforeSlot = slotIndex % $printSettings.horizontalLabelCount;
 	$: rowHeight = '' + 99.0 / $printSettings.verticalLabelCount + 'vh'; // There's the tiniest overflow for some stupid reason when using 100vh as the base measurement
 </script>
 
+<svelte:head>
+	<title>{title} - {appName}</title>
+</svelte:head>
+
 <div id="content">
-	<div id="pageSettings" class="unprintable">
-		<button id="viewModeToggle" on:click={toggleViewMode}>
-			Switch to {viewMode ? 'Edit Mode' : 'View Mode'}
-		</button>
-		<button id="printSettingsToggle" on:click={togglePrintSettings}>
-			{printSettingsVisible ? 'Hide' : 'Show'} Print Settings
-		</button>
-		<button id="printButton" on:click={printLabel}>Print</button>
-		{#if printSettingsVisible}
-			<div id="printSettings">
-				<div id="printHelp" class="smallerFont">
-					Make sure your margins are set to "None" in the browser popup.<br />
-					You may need to play with the settings below to get the labels<br />
-					to look right, but once they're set, <i>{appName}</i> will remember them.<br /><br />
-					If you click the "Print" button when these settings are closed, the<br />
-					label slot will automatically move to the next so you don't have to.
+	{#if deviceId}
+		<div id="pageSettings" class="unprintable">
+			<button id="viewModeToggle" on:click={toggleViewMode}>
+				Switch to {viewMode ? 'Edit Mode' : 'View Mode'}
+			</button>
+			<button id="printSettingsToggle" on:click={togglePrintSettings}>
+				{printSettingsVisible ? 'Hide' : 'Show'} Print Settings
+			</button>
+			<button id="printButton" on:click={printLabel}>Print</button>
+			{#if printSettingsVisible}
+				<div id="printSettings">
+					<div id="printHelp" class="smallerFont">
+						Make sure your margins are set to "None" in the browser popup.<br />
+						You may need to play with the settings below to get the labels<br />
+						to look right, but once they're set, <i>{appName}</i> will remember them.<br /><br />
+						If you click the "Print" button when these settings are closed, the<br />
+						label slot will automatically move to the next so you don't have to.
+					</div>
+					<table>
+						<tr>
+							<td>
+								<label for="printSettingHorizontalLabelCount" class="block">Labels:</label>
+							</td>
+							<td>
+								<label for="printSettingVerticalLabelCount" class="block">
+									<input
+										bind:value={$printSettings.horizontalLabelCount}
+										id="printSettingHorizontalLabelCount"
+										class="printSettingInput"
+										type="number"
+										min="1"
+										max="4"
+										placeholder="H"
+									/>&nbsp;&times;&nbsp;<input
+										bind:value={$printSettings.verticalLabelCount}
+										id="printSettingVerticalLabelCount"
+										class="printSettingInput"
+										type="number"
+										min="1"
+										max="4"
+										placeholder="V"
+									/></label
+								>
+							</td>
+						</tr>
+						<tr title="The label position, from top left to bottom right.">
+							<td>
+								<label for="printSettingLabelSlot" class="block">Position:</label>
+							</td>
+							<td>
+								<label for="printSettingLabelSlot" class="block">
+									<input
+										bind:value={$printSettings.slot}
+										id="printSettingLabelSlot"
+										class="printSettingInput"
+										type="number"
+										min="1"
+										max={$printSettings.horizontalLabelCount * $printSettings.verticalLabelCount}
+									/>
+								</label>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<label for="printSettingLabelMarginHorizontal" class="block">
+									Horizontal Margin:
+								</label>
+							</td>
+							<td>
+								<label for="printSettingLabelMarginHorizontal" class="block">
+									<input
+										bind:value={$printSettings.labelMarginHorizontal}
+										id="printSettingLabelMarginHorizontal"
+										class="printSettingInput"
+										type="number"
+										min="0"
+									/>&nbsp;mm</label
+								>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<label for="printSettingLabelMarginVertical" class="block">Vertical Margin:</label>
+							</td>
+							<td>
+								<label for="printSettingLabelMarginVertical" class="block">
+									<input
+										bind:value={$printSettings.labelMarginVertical}
+										id="printSettingLabelMarginVertical"
+										class="printSettingInput"
+										type="number"
+										min="0"
+									/>&nbsp;mm</label
+								>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<label for="printSettingFontSize" class="block">Font Size:</label>
+							</td>
+							<td>
+								<label for="printSettingFontSize" class="block">
+									<input
+										bind:value={$printSettings.fontSize}
+										id="printSettingFontSize"
+										class="printSettingInput"
+										type="number"
+										min="1"
+									/>&nbsp;pt</label
+								>
+							</td>
+						</tr>
+						<tr title="Guides that show the dividing lines between label slots.">
+							<td>
+								<label for="printSettingBorderMarkers" class="block">Show Boundary Guides:</label>
+							</td>
+							<td>
+								<label for="printSettingBorderMarkers" class="block">
+									<input
+										bind:checked={$printSettings.borderMarkers}
+										id="printSettingBorderMarkers"
+										type="checkbox"
+									/>
+								</label>
+							</td>
+						</tr>
+					</table>
 				</div>
-				<table>
-					<tr>
-						<td>
-							<label for="printSettingHorizontalLabelCount" class="block">Labels:</label>
-						</td>
-						<td>
-							<label for="printSettingVerticalLabelCount" class="block">
-								<input
-									bind:value={$printSettings.horizontalLabelCount}
-									id="printSettingHorizontalLabelCount"
-									class="printSettingInput"
-									type="number"
-									min="1"
-									max="4"
-									placeholder="H"
-								/>&nbsp;&times;&nbsp;<input
-									bind:value={$printSettings.verticalLabelCount}
-									id="printSettingVerticalLabelCount"
-									class="printSettingInput"
-									type="number"
-									min="1"
-									max="4"
-									placeholder="V"
-								/></label
-							>
-						</td>
-					</tr>
-					<tr title="The label position, from top left to bottom right.">
-						<td>
-							<label for="printSettingLabelSlot" class="block">Position:</label>
-						</td>
-						<td>
-							<label for="printSettingLabelSlot" class="block">
-								<input
-									bind:value={$printSettings.slot}
-									id="printSettingLabelSlot"
-									class="printSettingInput"
-									type="number"
-									min="1"
-									max={$printSettings.horizontalLabelCount * $printSettings.verticalLabelCount}
-								/>
-							</label>
-						</td>
-					</tr>
-					<tr>
-						<td>
-							<label for="printSettingLabelMarginHorizontal" class="block">Horizontal Margin:</label
-							>
-						</td>
-						<td>
-							<label for="printSettingLabelMarginHorizontal" class="block">
-								<input
-									bind:value={$printSettings.labelMarginHorizontal}
-									id="printSettingLabelMarginHorizontal"
-									class="printSettingInput"
-									type="number"
-									min="0"
-								/>&nbsp;mm</label
-							>
-						</td>
-					</tr>
-					<tr>
-						<td>
-							<label for="printSettingLabelMarginVertical" class="block">Vertical Margin:</label>
-						</td>
-						<td>
-							<label for="printSettingLabelMarginVertical" class="block">
-								<input
-									bind:value={$printSettings.labelMarginVertical}
-									id="printSettingLabelMarginVertical"
-									class="printSettingInput"
-									type="number"
-									min="0"
-								/>&nbsp;mm</label
-							>
-						</td>
-					</tr>
-					<tr>
-						<td>
-							<label for="printSettingFontSize" class="block">Font Size:</label>
-						</td>
-						<td>
-							<label for="printSettingFontSize" class="block">
-								<input
-									bind:value={$printSettings.fontSize}
-									id="printSettingFontSize"
-									class="printSettingInput"
-									type="number"
-									min="1"
-								/>&nbsp;pt</label
-							>
-						</td>
-					</tr>
-					<tr title="Guides that show the dividing lines between label slots.">
-						<td>
-							<label for="printSettingBorderMarkers" class="block">Show Boundary Guides:</label>
-						</td>
-						<td>
-							<label for="printSettingBorderMarkers" class="block">
-								<input
-									bind:checked={$printSettings.borderMarkers}
-									id="printSettingBorderMarkers"
-									type="checkbox"
-								/>
-							</label>
-						</td>
-					</tr>
-				</table>
-			</div>
-		{/if}
-		<br /><br />
-	</div>
+			{/if}
+			<br /><br />
+		</div>
+	{/if}
 	{#if viewMode !== ViewMode.Print}
 		<svelte:component this={editDeviceDetails} bind:deviceId bind:viewMode bind:isLoading />
 	{:else}
