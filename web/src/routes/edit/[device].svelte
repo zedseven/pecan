@@ -1,7 +1,6 @@
 <script lang="ts">
 	import navBar from '../../components/navBar.svelte';
 	import editDevice from '../../components/editDevice.svelte';
-	import { appName } from '../../constants';
 	import { page } from '$app/stores';
 
 	let device = $page.params['device'];
