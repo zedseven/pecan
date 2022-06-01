@@ -30,6 +30,7 @@ thiserror = "1.0"
 libsqlite3-sys = { version = "0.22", default-features = false, features = ["bundled"] }
 
 [build-dependencies]
+chrono = "0.4"
 which = "4.2"
 
 [features]

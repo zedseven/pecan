@@ -4,7 +4,8 @@ import preprocess from 'svelte-preprocess';
 
 // Constants
 const buildMode = process.env.BUILD_MODE || 'development';
-const projectVersion = process.env.PROJECT_VERSION || 'unknown';
+const buildVersion = process.env.BUILD_VERSION || 'unknown';
+const buildDate = process.env.BUILD_DATE || 'unknown';
 
 // Exports
 /** @type {import('@sveltejs/kit').Config} */
@@ -22,7 +23,8 @@ const config = {
 				sourcemap: true,
 			},
 			define: {
-				__PROJECT_VERSION__: projectVersion,
+				__BUILD_VERSION__: buildVersion,
+				__BUILD_DATE__: buildDate,
 			},
 			mode: buildMode, // https://github.com/sveltejs/kit/issues/1258#issuecomment-874482104
 		},

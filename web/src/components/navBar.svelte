@@ -1,9 +1,7 @@
 <script lang="ts">
 	// Imports
-	import { appNameLowercase, projectVersion } from '../constants';
-	import { selectedLocation } from '../stores';
+	import { appNameLowercase, buildVersion, buildDate } from '../constants';
 	import globalStyle from './globalStyle.svelte';
-	import locationSelector from './locationSelector.svelte';
 
 	// Set the logo filetype based on SVG support
 	let logoFileName = document.implementation.hasFeature(
@@ -34,7 +32,7 @@
 			id="locationSelector"
 			emptyValueLabel="-- Your Location --"
 		/>-->
-		<p class="headerInfo">{projectVersion}</p>
+		<p class="headerInfo" title={buildDate}>{buildVersion}</p>
 	</div>
 </header>
 

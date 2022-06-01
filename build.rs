@@ -4,6 +4,7 @@ use std::{
 	process::Command,
 };
 
+use chrono::Utc;
 use which::which;
 
 /// Builds the static site before starting up.
@@ -39,6 +40,13 @@ fn main() {
 		"production"
 	};
 
+	// Provide other build metadata
+	let build_version = concat!('v', env!("CARGO_PKG_VERSION"));
+	let build_date = Utc::now()
+		.naive_utc()
+		.format("%Y-%m-%d %H:%M:%S UTC")
+		.to_string();
+
 	// Get the NPM binary path
 	// Previously it just used `Command::new("npm")`, but that didn't work on
 	// Windows for some stupid reason
@@ -50,7 +58,8 @@ fn main() {
 		.arg("build")
 		.current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/web"))
 		.env("BUILD_MODE", build_mode)
-		.env("PROJECT_VERSION", concat!('v', env!("CARGO_PKG_VERSION")))
+		.env("BUILD_VERSION", build_version)
+		.env("BUILD_DATE", build_date)
 		.output()
 		.expect("failed to execute npm");
 
