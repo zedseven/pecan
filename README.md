@@ -13,10 +13,11 @@ It allows for arbitrary data to be attached to each device, and can enforce spec
 
 This project is licensed under the terms of the GNU General Public License v3.0.
 
-If you want to use this project or any part of it for commercial purposes for example, you can contact Zacchary
-Dempsey-Plante to discuss the grant of a more permissive license.
+If you want to use this project or any part of it for commercial distribution, you can contact Zacchary Dempsey-Plante
+to discuss the grant of a more permissive license.
 
 ## Attribution
 
-The logo is [used with permission](logo-license.pdf) from [Flaticon](https://www.flaticon.com/free-icon/pecan_2227352),
+The logo is [used with permission](logo-certificate.pdf)
+from [Flaticon](https://www.flaticon.com/free-icon/pecan_2227352),
 and made by Smashicons.
