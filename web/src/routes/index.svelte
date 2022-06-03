@@ -131,9 +131,7 @@
 			<form on:submit|preventDefault={onSearch} method="post">
 				<table>
 					<tr class="noHoverDarken">
-						<th colspan="2">Last-Updated</th>
 						<th><label for="filterDeviceId" class="block">Device ID</label></th>
-						<th><label for="filterLocation" class="block">Location</label></th>
 						{#each definitions.columnDefinitions as columnDefinition}
 							{#if columnDefinition[0].showInMainPage}
 								<th>
@@ -143,9 +141,10 @@
 								</th>
 							{/if}
 						{/each}
+						<th><label htmlFor="filterLocation" className="block">Location</label></th>
+						<th colSpan="2">Last-Updated</th>
 					</tr>
 					<tr class="noHoverDarken">
-						<td colspan="2"><input type="submit" id="searchButton" value="Search" /></td>
 						<td>
 							<svelte:component
 								this={searchBar}
@@ -153,16 +152,6 @@
 								id="filterDeviceId"
 								className="searchInput"
 								placeholder="Device ID"
-							/>
-						</td>
-						<td>
-							<svelte:component
-								this={locationSelector}
-								bind:value={searchData.locationId}
-								id="filterLocation"
-								className="searchInput"
-								emptyValueLabel="-- Location --"
-								disableEmptyValue={false}
 							/>
 						</td>
 						{#each definitions.columnDefinitions as columnDefinition}
@@ -178,9 +167,33 @@
 								</td>
 							{/if}
 						{/each}
+						<td>
+							<svelte:component
+								this={locationSelector}
+								bind:value={searchData.locationId}
+								id="filterLocation"
+								className="searchInput"
+								disableEmptyValue={false}
+							/>
+						</td>
+						<td colSpan="2"><input type="submit" id="searchButton" value="Search" /></td>
 					</tr>
 					{#each deviceResults as deviceResult}
 						<tr>
+							<td class="centerContents monospace slightlyLargerFont">
+								<a href="/edit/{deviceResult[0].deviceId}" class="block altLink">
+									{deviceResult[0].deviceId}
+								</a>
+							</td>
+							{#each deviceResult[1] as columnValue, index}
+								{#if definitions.columnDefinitions[index][0].showInMainPage}
+									<td>{columnValue.dataValue}</td>
+								{/if}
+							{/each}
+							<td>{deviceResult[0].location}</td>
+							<td class="centerContents">
+								<svelte:component this={datetime} datetimeUtc={deviceResult[0].lastUpdated + 'Z'} />
+							</td>
 							<td>
 								<svelte:component
 									this={checkoutButton}
@@ -189,20 +202,6 @@
 									bind:currentLocationName={deviceResult[0].location}
 								/>
 							</td>
-							<td class="centerContents">
-								<svelte:component this={datetime} datetimeUtc={deviceResult[0].lastUpdated + 'Z'} />
-							</td>
-							<td class="centerContents monospace slightlyLargerFont">
-								<a href="/edit/{deviceResult[0].deviceId}" class="block altLink">
-									{deviceResult[0].deviceId}
-								</a>
-							</td>
-							<td>{deviceResult[0].location}</td>
-							{#each deviceResult[1] as columnValue, index}
-								{#if definitions.columnDefinitions[index][0].showInMainPage}
-									<td>{columnValue.dataValue}</td>
-								{/if}
-							{/each}
 						</tr>
 					{/each}
 				</table>
@@ -228,7 +227,7 @@
 		width: 100%;
 	}
 	:global(.searchInput) {
-		width: 6em;
+		width: 5em;
 		min-width: 100%;
 	}
 </style>
