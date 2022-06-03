@@ -27,7 +27,7 @@ INSERT INTO column_possible_values (column_definition_id, value)
 VALUES (1, 'Not Working');
 
 INSERT INTO column_possible_values (column_definition_id, value)
-VALUES (1, 'Destroyed / Disposed Of');
+VALUES (1, 'Decommissioned');
 
 UPDATE column_definitions
 SET default_value_id = 1
