@@ -20,6 +20,9 @@
 # Environment variable files (for development, often containing private information)
 **/.env
 
+# Build-time version file
+VERSION.txt
+
 # Testing migrations
 /migrations/*_test*/
 
