@@ -153,14 +153,61 @@ pub struct DeviceComponentNew<'a> {
 
 // Select Definitions
 
-macro_rules! select_def {
-	($select_name:ident : $type_label:ident = $def:tt) => {
-		pub type $type_label = $def;
-		pub const $select_name: $type_label = $def;
+macro_rules! select_def_const {
+	// Main Definition
+	($select_name:ident : $type_label:ident = (
+		$(
+			$column_combined:path,
+		)+
+	)) => {
+		pub type $type_label = (
+			$(
+				$column_combined,
+			)+
+		);
+		pub const $select_name: $type_label = (
+			$(
+				$column_combined,
+			)+
+		);
 	};
 }
 
-select_def! {
+macro_rules! select_def_fn {
+	// Main Definition
+	($select_name:ident : $type_label:ident = (
+		$(
+			$column_tt:tt,
+		)+
+	)) => {
+		pub type $type_label = (
+			$(
+				select_def_fn!(@column_type: $column_tt),
+			)+
+		);
+		pub const $select_name: &'static dyn Fn() -> $type_label = &|| (
+			$(
+				select_def_fn!(@column_value: $column_tt),
+			)+
+		);
+	};
+
+	// Internal Rules
+	(@column_value: ($column_combined:path)) => {
+		$column_combined
+	};
+	(@column_value: ($column_value:expr, $column_type:ty)) => {
+		$column_value
+	};
+	(@column_type: ($column_combined:path)) => {
+		$column_combined
+	};
+	(@column_type: ($column_value:expr, $column_type:ty)) => {
+		$column_type
+	};
+}
+
+select_def_const! {
 	USER: UserSelect = (
 		user_info::id,
 		user_info::source,
@@ -170,13 +217,13 @@ select_def! {
 	)
 }
 
-select_def! {
+select_def_const! {
 	DEVICE_INFO: DeviceInfoSelect = (
 		device_key_info::id,
 		device_key_info::device_id,
 		device_key_info::location_id,
 		locations::name,
-		device_key_info::last_updated
+		device_key_info::last_updated,
 	)
 }
 #[derive(Identifiable, Queryable, Serialize, Deserialize, Debug)]
@@ -217,31 +264,19 @@ impl<'a> From<DeviceInfoByName<'a>> for DeviceInfo<'a> {
 	}
 }
 
-// Can't use `select_def` because of the nullable columns.
-pub type ColumnDefinitionSelect = (
-	column_definitions::id,
-	column_definitions::name,
-	column_definitions::not_null,
-	column_definitions::unique_values,
-	column_definitions::show_in_main_page,
-	column_definitions::show_on_labels,
-	column_definitions::exclusively_possible_values,
-	column_definitions::default_value_id,
-	Nullable<column_possible_values::value>,
-);
-pub const COLUMN_DEFINITION: &'static dyn Fn() -> ColumnDefinitionSelect = &|| {
-	(
-		column_definitions::id,
-		column_definitions::name,
-		column_definitions::not_null,
-		column_definitions::unique_values,
-		column_definitions::show_in_main_page,
-		column_definitions::show_on_labels,
-		column_definitions::exclusively_possible_values,
-		column_definitions::default_value_id,
-		column_possible_values::value.nullable(),
+select_def_fn! {
+	COLUMN_DEFINITION: ColumnDefinitionSelect = (
+		(column_definitions::id),
+		(column_definitions::name),
+		(column_definitions::not_null),
+		(column_definitions::unique_values),
+		(column_definitions::show_in_main_page),
+		(column_definitions::show_on_labels),
+		(column_definitions::exclusively_possible_values),
+		(column_definitions::default_value_id),
+		(column_possible_values::value.nullable(), Nullable<column_possible_values::value>),
 	)
-};
+}
 #[derive(Identifiable, Queryable, Serialize, Deserialize, Debug)]
 #[diesel(table_name = column_definitions)]
 #[serde(rename_all = "camelCase")]
