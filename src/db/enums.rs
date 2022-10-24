@@ -17,7 +17,7 @@ use diesel::{
 pub enum UserSource {
 	#[deprecated = "Currently unused, but reserved for later use."]
 	Local = 1,
-	Ldap = 2,
+	Ldap  = 2,
 }
 
 impl<DB> FromSql<Integer, DB> for UserSource

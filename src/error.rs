@@ -35,7 +35,7 @@ impl InternalError {
 		S: Into<String>,
 	{
 		Error::WithContext {
-			source: self,
+			source:  self,
 			context: context.into(),
 		}
 	}
@@ -69,7 +69,7 @@ pub enum Error {
 	/// Internal errors with context.
 	#[error("{context}: {source}")]
 	WithContext {
-		source: InternalError,
+		source:  InternalError,
 		context: String,
 	},
 }

@@ -17,19 +17,19 @@ pub struct LdapAuthenticator {
 	///
 	/// For example: `ldaps://localhost:2636` to connect to an LDAP over SSL
 	/// server on port 2636.
-	pub server_url: String,
+	pub server_url:                String,
 	/// Whether to use TLS to connect to the server. To do this, the server must
 	/// support TLS. (such as an LDAP over SSL server, or LDAPS)
-	pub use_tls: bool,
+	pub use_tls:                   bool,
 	/// Whether to perform certificate verification. Does not apply if `use_tls`
 	/// is `false`.
-	pub verify_tls_certificate: bool,
+	pub verify_tls_certificate:    bool,
 	/// The Distinguished Name of the reader user.
-	pub reader_dn: String,
+	pub reader_dn:                 String,
 	/// The password to bind to the reader user.
-	pub reader_password: String,
+	pub reader_password:           String,
 	/// The bases to search in when searching a provided username.
-	pub search_bases: Vec<String>,
+	pub search_bases:              Vec<String>,
 	/// The LDAP attribute used to identify users. (what is searched-for when a
 	/// user provides their username)
 	///
@@ -38,7 +38,7 @@ pub struct LdapAuthenticator {
 	/// identifier) or `userPrincipalName` (user identifier @ domain)
 	pub user_identifier_attribute: String,
 	/// The LDAP attribute that stores the user display name.
-	pub display_name_attribute: String,
+	pub display_name_attribute:    String,
 }
 
 /// The return value of an LDAP authentication.
@@ -46,9 +46,9 @@ pub struct AuthenticationReturn {
 	/// The DN of the user.
 	distinguished_name: String,
 	/// The `uid` on LDAP, and `sAMAccountName` on AD.
-	unique_identifier: String,
+	unique_identifier:  String,
 	/// The display name for the user. Typically first & last name.
-	display_name: String,
+	display_name:       String,
 }
 
 impl TryFrom<&LdapSettings> for LdapAuthenticator {
@@ -69,18 +69,18 @@ impl TryFrom<&LdapSettings> for LdapAuthenticator {
 
 		// Load the config
 		Ok(Self {
-			server_url: config.server_url.clone(),
-			use_tls: config.tls.enabled,
-			verify_tls_certificate: config.tls.verify_certificates,
-			reader_dn: config.reader.distinguished_name.clone(),
-			reader_password: config.reader.password.clone(),
-			search_bases: config.search_bases.clone(),
+			server_url:                config.server_url.clone(),
+			use_tls:                   config.tls.enabled,
+			verify_tls_certificate:    config.tls.verify_certificates,
+			reader_dn:                 config.reader.distinguished_name.clone(),
+			reader_password:           config.reader.password.clone(),
+			search_bases:              config.search_bases.clone(),
 			user_identifier_attribute: match config.r#type {
 				LdapServerType::Ldap => "uid",
 				LdapServerType::ActiveDirectory => "sAMAccountName",
 			}
 			.to_owned(),
-			display_name_attribute: config.user_display_name_attribute.clone(),
+			display_name_attribute:    config.user_display_name_attribute.clone(),
 		})
 	}
 }
@@ -195,8 +195,8 @@ impl LdapAuthenticator {
 			if success {
 				Ok(Some(AuthenticationReturn {
 					distinguished_name: user_entry.dn,
-					unique_identifier: username.to_owned(),
-					display_name: display_name.trim().to_owned(),
+					unique_identifier:  username.to_owned(),
+					display_name:       display_name.trim().to_owned(),
 				}))
 			} else {
 				Ok(None)
@@ -210,9 +210,9 @@ impl LdapAuthenticator {
 impl From<AuthenticationReturn> for UserNew {
 	fn from(ret: AuthenticationReturn) -> Self {
 		Self {
-			source: UserSource::Ldap,
+			source:            UserSource::Ldap,
 			unique_identifier: ret.unique_identifier,
-			display_name: ret.display_name,
+			display_name:      ret.display_name,
 		}
 	}
 }

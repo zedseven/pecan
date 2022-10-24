@@ -40,7 +40,7 @@ pub fn generate_token_for_user(
 		insert_into(tokens)
 			.values(TokenNew {
 				user_id: token_user_id,
-				value: Cow::from(token_value.as_str()),
+				value:   Cow::from(token_value.as_str()),
 				expires: (Utc::now() + get_token_valid_duration(token_valid_days)).naive_utc(),
 			})
 			.execute(tc)

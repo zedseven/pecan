@@ -67,14 +67,14 @@ impl Routable for DevicesApi {
 pub struct NewDeviceInfo {
 	location_id: i32,
 	column_data: Vec<SubmittedColumnData>,
-	components: Vec<NewDeviceComponent>,
+	components:  Vec<NewDeviceComponent>,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdatedDeviceInfo {
 	location_id: i32,
 	column_data: Vec<SubmittedColumnData>,
-	components: Vec<UpdatedDeviceComponent>,
+	components:  Vec<UpdatedDeviceComponent>,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -84,13 +84,13 @@ pub struct NewDeviceComponent {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdatedDeviceComponent {
-	component_id: Option<String>,
+	component_id:   Option<String>,
 	component_type: String,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SubmittedSearchQuery {
-	device_id: String,
+	device_id:   String,
 	location_id: Option<i32>,
 	column_data: Vec<SubmittedColumnData>,
 }
@@ -98,19 +98,19 @@ pub struct SubmittedSearchQuery {
 #[serde(rename_all = "camelCase")]
 pub struct SubmittedColumnData {
 	column_definition_id: i32,
-	data_value: String,
+	data_value:           String,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CheckoutInfo {
-	device_id: String,
+	device_id:   String,
 	location_id: i32,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ValueExistsQuery {
 	device_id: Option<String>,
-	value: String,
+	value:     String,
 }
 
 /// Fetches the column definitions and locations.
@@ -412,8 +412,8 @@ pub async fn create_device(
 			// Insert the new device entry
 			insert_into(device_key_info)
 				.values(DeviceKeyInfoNew {
-					device_id: Cow::from(new_device_id.as_str()),
-					location_id: device_info.location_id,
+					device_id:    Cow::from(new_device_id.as_str()),
+					location_id:  device_info.location_id,
 					last_updated: Utc::now().naive_utc(),
 				})
 				.execute(tc)
@@ -430,9 +430,9 @@ pub async fn create_device(
 						.column_data
 						.iter()
 						.map(|data| DeviceDataNew {
-							device_key_info_id: new_device_key_info_id,
+							device_key_info_id:   new_device_key_info_id,
 							column_definition_id: data.column_definition_id,
-							data_value: Cow::from(data.data_value.as_str()),
+							data_value:           Cow::from(data.data_value.as_str()),
 						})
 						.collect::<Vec<_>>(),
 				)
@@ -450,8 +450,8 @@ pub async fn create_device(
 				insert_into(device_components)
 					.values(DeviceComponentNew {
 						device_key_info_id: new_device_key_info_id,
-						component_id: Cow::from(new_component_id.as_str()),
-						component_type: Cow::from(component.component_type.as_str()),
+						component_id:       Cow::from(new_component_id.as_str()),
+						component_type:     Cow::from(component.component_type.as_str()),
 					})
 					.execute(tc)
 					.with_context("unable to insert into device_components")?;
@@ -554,8 +554,8 @@ pub async fn update_device(
 					insert_into(device_components)
 						.values(DeviceComponentNew {
 							device_key_info_id: internal_id,
-							component_id: Cow::from(new_component_id.as_str()),
-							component_type: Cow::from(component.component_type.as_str()),
+							component_id:       Cow::from(new_component_id.as_str()),
+							component_type:     Cow::from(component.component_type.as_str()),
 						})
 						.execute(tc)
 						.with_context("unable to insert into device_components")?;
