@@ -102,7 +102,7 @@ impl LdapAuthenticator {
 		// https://cheatsheetseries.owasp.org/cheatsheets/LDAP_Injection_Prevention_Cheat_Sheet.html
 		// https://datatracker.ietf.org/doc/html/rfc4515#section-3
 		// The `@` is also excluded because email address logins aren't supported.
-		if username.contains(&['*', '+', '(', ')', '\\', '@']) {
+		if username.contains(['*', '+', '(', ')', '\\', '@']) {
 			return Ok(None);
 		}
 
@@ -134,7 +134,7 @@ impl LdapAuthenticator {
 				.search(
 					search_base.as_str(),
 					Scope::Subtree,
-					format!("({}={})", self.user_identifier_attribute, username).as_str(),
+					format!("({}={username})", self.user_identifier_attribute).as_str(),
 					Vec::<&str>::new(),
 				)
 				.await
@@ -175,7 +175,7 @@ impl LdapAuthenticator {
 				Some(_) => {
 					// This *could* be an error, but that would mean the system would return an
 					// internal error whenever someone tries to log in without a display name set.
-					eprintln!("user has no display name: {}", username);
+					eprintln!("user has no display name: {username}");
 					return Ok(None);
 				}
 				None => {

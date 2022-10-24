@@ -32,7 +32,7 @@ pub async fn init(rocket: Rocket<Build>) -> Result<Rocket<Build>, Rocket<Build>>
 		.run(|c| match c.run_pending_migrations(MIGRATIONS) {
 			Ok(_) => true,
 			Err(e) => {
-				eprintln!("failed to run embedded database migrations: {:?}", e);
+				eprintln!("failed to run embedded database migrations: {e:?}");
 				false
 			}
 		})

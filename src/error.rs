@@ -94,7 +94,7 @@ impl Error {
 				context: internal_context,
 			} => Self::WithContext {
 				source,
-				context: format!("{}: {}", context.into(), internal_context),
+				context: format!("{}: {internal_context}", context.into()),
 			},
 			// Throw out the context if the error variant is unsupported
 			_ => self,
@@ -143,7 +143,7 @@ impl<T> Context<T, Error> for Result<T, Error> {
 // Responder Implementations
 impl<'r, 'o: 'r> Responder<'r, 'o> for InternalError {
 	fn respond_to(self, request: &Request<'_>) -> response::Result<'o> {
-		eprintln!("{}", self);
+		eprintln!("{self}");
 		Status::InternalServerError.respond_to(request)
 	}
 }

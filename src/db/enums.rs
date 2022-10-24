@@ -29,7 +29,7 @@ where
 		match i32::from_sql(bytes)? {
 			1 => Ok(UserSource::Local),
 			2 => Ok(UserSource::Ldap),
-			x => Err(format!("Unrecognized variant {}", x).into()),
+			x => Err(format!("Unrecognized variant {x}").into()),
 		}
 	}
 }

@@ -74,7 +74,7 @@ pub fn rocket() -> Rocket<Build> {
 				match LdapAuthenticator::try_from(&ldap_config) {
 					Ok(auth) => Ok(r.manage(Some(auth))),
 					Err(e) => {
-						eprintln!("{}", e);
+						eprintln!("{e}");
 						Err(r)
 					}
 				}
@@ -88,15 +88,15 @@ pub fn rocket() -> Rocket<Build> {
 	// Mount the routes
 	rocket = rocket
 		.mount(
-			format!("{}{}", API_ROOT, AuthApi::PATH).as_str(),
+			format!("{API_ROOT}{}", AuthApi::PATH).as_str(),
 			AuthApi::ROUTES(),
 		)
 		.mount(
-			format!("{}{}", API_ROOT, DevicesApi::PATH).as_str(),
+			format!("{API_ROOT}{}", DevicesApi::PATH).as_str(),
 			DevicesApi::ROUTES(),
 		)
 		.mount(
-			format!("{}{}", API_ROOT, AdminApi::PATH).as_str(),
+			format!("{API_ROOT}{}", AdminApi::PATH).as_str(),
 			AdminApi::ROUTES(),
 		)
 		.mount(SveltePages::PATH, SveltePages::ROUTES())
