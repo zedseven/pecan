@@ -99,14 +99,22 @@ impl LdapAuthenticator {
 		password: &str,
 	) -> Result<Option<AuthenticationReturn>, &'static str> {
 		// Validate the provided username - it can't contain certain special characters
+		// TODO: This could be improved to escape the characters instead of failing
 		// https://cheatsheetseries.owasp.org/cheatsheets/LDAP_Injection_Prevention_Cheat_Sheet.html
 		// https://datatracker.ietf.org/doc/html/rfc4515#section-3
+		// https://wiki.sei.cmu.edu/confluence/spaces/flyingpdf/pdfpageexport.action?pageId=88487534
 		// The `@` is also excluded because email address logins aren't supported.
-		if username.contains(['*', '+', '(', ')', '\\', '@']) {
+		if username.contains([
+			'\'', '"', '*', '+', '(', ')', '/', '\\', '<', '>', ',', ';', '\u{0000}', '@',
+		]) {
 			return Ok(None);
 		}
 
 		username = username.trim();
+
+		if username.starts_with('#') {
+			return Ok(None);
+		}
 
 		// Start the connection
 		let (conn, mut ldap) = LdapConnAsync::with_settings(
