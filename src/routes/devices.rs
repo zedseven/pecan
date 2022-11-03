@@ -12,6 +12,7 @@ use diesel::{
 	sql_types::{Integer, Nullable, Text},
 	sqlite::Sqlite,
 	update,
+	upsert::excluded,
 	BelongingToDsl,
 	Connection,
 	ExpressionMethods,
@@ -33,12 +34,7 @@ use rocket::{
 use super::Routable;
 use crate::{
 	auth::AuthedUser,
-	db::{
-		models::*,
-		schema,
-		util::{data_value_exists, fetch_new_rowid_on},
-		DbConn,
-	},
+	db::{models::*, schema, util::data_value_exists, DbConn},
 	error::{Context, Error, UserError},
 	util::{gen_new_component_id, gen_new_device_id},
 };
@@ -64,22 +60,10 @@ impl Routable for DevicesApi {
 // Type Definitions
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct NewDeviceInfo {
-	location_id: i32,
-	column_data: Vec<SubmittedColumnData>,
-	components:  Vec<NewDeviceComponent>,
-}
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct UpdatedDeviceInfo {
 	location_id: i32,
 	column_data: Vec<SubmittedColumnData>,
 	components:  Vec<UpdatedDeviceComponent>,
-}
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NewDeviceComponent {
-	component_type: String,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -382,101 +366,28 @@ pub async fn checkout_device(
 pub async fn create_device(
 	_user: &AuthedUser,
 	conn: DbConn,
-	device_info: Json<NewDeviceInfo>,
+	device_info: Json<UpdatedDeviceInfo>,
 ) -> Result<JsonValue, Error> {
-	conn.run(move |c| {
-		// Uses
-		use schema::{
-			device_components::dsl::*,
-			device_data::dsl::*,
-			device_key_info::dsl::*,
-			locations::dsl::*,
-		};
-
-		// Verify the new location
-		if !select(exists(
-			locations.filter(schema::locations::dsl::id.eq(device_info.location_id)),
-		))
-		.get_result::<bool>(c)
-		.with_context("unable to query the database for location existence")?
-		{
-			return Err(UserError::NotFound("Invalid location.").into());
-		}
-
-		// Generate a new device ID
-		let new_device_id =
-			gen_new_device_id(c).with_context("unable to generate a new device ID")?;
-
-		// Begin the transaction
-		c.transaction::<_, Error, _>(|tc| {
-			// Insert the new device entry
-			insert_into(device_key_info)
-				.values(DeviceKeyInfoNew {
-					device_id:    Cow::from(new_device_id.as_str()),
-					location_id:  device_info.location_id,
-					last_updated: Utc::now().naive_utc(),
-				})
-				.execute(tc)
-				.with_context("unable to insert into device_key_info")?;
-
-			// Fetch the new device's internal ID
-			let new_device_key_info_id =
-				fetch_new_rowid_on(tc).with_context("unable to get the new device_key_info id")?;
-
-			// Insert the device column data
-			insert_into(device_data)
-				.values(
-					device_info
-						.column_data
-						.iter()
-						.map(|data| DeviceDataNew {
-							device_key_info_id:   new_device_key_info_id,
-							column_definition_id: data.column_definition_id,
-							data_value:           Cow::from(data.data_value.as_str()),
-						})
-						.collect::<Vec<_>>(),
-				)
-				.execute(tc)
-				.with_context("unable to insert into device_data")?;
-
-			// Insert all of the components
-			for component in &device_info.components {
-				// This could definitely be made more performant, but in this case it's not
-				// really necessary and this is convenient
-				let new_component_id = gen_new_component_id(tc, new_device_key_info_id)
-					.with_context("unable to generate a new component ID")?;
-
-				// Insert the component
-				insert_into(device_components)
-					.values(DeviceComponentNew {
-						device_key_info_id: new_device_key_info_id,
-						component_id:       Cow::from(new_component_id.as_str()),
-						component_type:     Cow::from(component.component_type.as_str()),
-					})
-					.execute(tc)
-					.with_context("unable to insert into device_components")?;
-			}
-
-			Ok(())
-		})
-		.with_context("unable to create the new device entry")?;
-
-		// Return the results
-		Ok(json!({ "deviceId": new_device_id }))
-	})
-	.await
+	upsert_device(conn, None, device_info).await
 }
 
 /// Updates a device's data.
-///
-/// TODO: Combine this with `create_device`.
-/// TODO: This has an issue if a column value doesn't yet exist for a specific
-/// device. This might be helped by combining with `create_device`.
 #[post("/update/<device>", data = "<device_info>")]
 pub async fn update_device(
 	_user: &AuthedUser,
 	conn: DbConn,
 	device: String,
+	device_info: Json<UpdatedDeviceInfo>,
+) -> Result<JsonValue, Error> {
+	upsert_device(conn, Some(device), device_info).await
+}
+
+/// Inserts or updates device information, depending on if it's already present
+/// in the database. This is the implementation for [`create_device`] and
+/// [`update_device`].
+async fn upsert_device(
+	conn: DbConn,
+	device: Option<String>,
 	device_info: Json<UpdatedDeviceInfo>,
 ) -> Result<JsonValue, Error> {
 	conn.run(move |c| {
@@ -498,68 +409,89 @@ pub async fn update_device(
 			return Err(UserError::NotFound("Invalid location.").into());
 		}
 
+		// Generate a new device ID if one wasn't provided
+		let prepared_device_id = if let Some(provided_device_id) = device {
+			provided_device_id
+		} else {
+			gen_new_device_id(c).with_context("unable to generate a new device ID")?
+		};
+
 		// Technically there should be verification that duplicate values aren't being
 		// submitted here, but it's already enforced by the frontend and it's not worth
 		// the many additional queries right now
 		// The same goes for not-null values
 
-		// Fetch the device's internal ID
-		let internal_id = device_key_info
-			.filter(device_id.eq(device.as_str()))
-			.select(schema::device_key_info::dsl::id)
-			.get_result::<i32>(c)
-			.with_context("unable to get the internal ID associated with the provided device ID")?;
-
 		// Begin the transaction
 		c.transaction::<_, Error, _>(|tc| {
-			// Update the device entry
-			update(device_key_info.filter(schema::device_key_info::dsl::id.eq(internal_id)))
+			// Upsert the main device entry
+			insert_into(device_key_info)
+				.values(DeviceKeyInfoNew {
+					device_id:    Cow::from(prepared_device_id.as_str()),
+					location_id:  device_info.location_id,
+					last_updated: Utc::now().naive_utc(),
+				})
+				.on_conflict(device_id)
+				.do_update()
 				.set((
-					location_id.eq(device_info.location_id),
-					last_updated.eq(Utc::now().naive_utc()),
+					location_id.eq(excluded(location_id)),
+					last_updated.eq(excluded(last_updated)),
 				))
 				.execute(tc)
-				.with_context("unable to update device_key_info")?;
+				.with_context("unable to upsert into device_key_info")?;
 
-			// Update the device column data
+			// Fetch the device's internal ID for use in the other queries
+			let internal_id = device_key_info
+				.filter(device_id.eq(prepared_device_id.as_str()))
+				.select(schema::device_key_info::dsl::id)
+				.get_result::<i32>(tc)
+				.with_context(
+					"unable to get the internal ID associated with the prepared device ID",
+				)?;
+
+			// Upsert the device column data
 			for column in &device_info.column_data {
-				update(
-					device_data
-						.filter(schema::device_data::dsl::device_key_info_id.eq(internal_id))
-						.filter(column_definition_id.eq(column.column_definition_id)),
-				)
-				.set(data_value.eq(column.data_value.as_str()))
-				.execute(tc)
-				.with_context("unable to update device_data")?;
+				insert_into(device_data)
+					.values(DeviceDataNew {
+						device_key_info_id:   internal_id,
+						column_definition_id: column.column_definition_id,
+						data_value:           Cow::from(column.data_value.as_str()),
+					})
+					.on_conflict((
+						schema::device_data::dsl::device_key_info_id,
+						column_definition_id,
+					))
+					.do_update()
+					.set(data_value.eq(excluded(data_value)))
+					.execute(tc)
+					.with_context("unable to upsert into device_data")?;
 			}
 
-			// Update the device components
+			// Upsert the device components
 			for component in &device_info.components {
-				if let Some(existing_id) = &component.component_id {
-					update(
-						device_components
-							.filter(
-								schema::device_components::dsl::device_key_info_id.eq(internal_id),
-							)
-							.filter(component_id.eq(existing_id.as_str())),
-					)
-					.set(component_type.eq(component.component_type.as_str()))
-					.execute(tc)
-					.with_context("unable to update device_components")?;
-				} else {
-					let new_component_id = gen_new_component_id(tc, internal_id)
-						.with_context("unable to generate a new component ID")?;
+				// Generate a new component ID if one wasn't provided
+				let prepared_component_id =
+					if let Some(provided_component_id) = component.component_id.clone() {
+						provided_component_id
+					} else {
+						gen_new_component_id(tc, internal_id)
+							.with_context("unable to generate a new component ID")?
+					};
 
-					// Insert the component
-					insert_into(device_components)
-						.values(DeviceComponentNew {
-							device_key_info_id: internal_id,
-							component_id:       Cow::from(new_component_id.as_str()),
-							component_type:     Cow::from(component.component_type.as_str()),
-						})
-						.execute(tc)
-						.with_context("unable to insert into device_components")?;
-				}
+				// Upsert the component
+				insert_into(device_components)
+					.values(DeviceComponentNew {
+						device_key_info_id: internal_id,
+						component_id:       Cow::from(prepared_component_id.as_str()),
+						component_type:     Cow::from(component.component_type.as_str()),
+					})
+					.on_conflict((
+						schema::device_components::dsl::device_key_info_id,
+						component_id,
+					))
+					.do_update()
+					.set(component_type.eq(excluded(component_type)))
+					.execute(tc)
+					.with_context("unable to upsert into device_components")?;
 			}
 
 			Ok(())
@@ -567,7 +499,7 @@ pub async fn update_device(
 		.with_context("unable to update the device entry")?;
 
 		// Return the results
-		Ok(json!({ "deviceId": device.clone() }))
+		Ok(json!({ "deviceId": prepared_device_id }))
 	})
 	.await
 }
