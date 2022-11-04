@@ -151,6 +151,36 @@ pub struct DeviceComponentNew<'a> {
 	pub component_type:     Cow<'a, str>,
 }
 
+#[derive(Associations, Identifiable, Queryable, Debug, Clone)]
+#[diesel(table_name = device_attachments, belongs_to(DeviceInfo<'_>, foreign_key = device_key_info_id))]
+pub struct DeviceAttachment<'a> {
+	pub id:                 i32,
+	pub device_key_info_id: i32,
+	pub attachment_id:      Cow<'a, str>,
+	pub description:        Cow<'a, str>,
+	pub file_name:          Cow<'a, str>,
+	pub file_data:          Vec<u8>,
+}
+#[derive(Associations, Identifiable, Queryable, Serialize, Deserialize, Debug, Clone)]
+#[diesel(table_name = device_attachments, belongs_to(DeviceInfo<'_>, foreign_key = device_key_info_id))]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceAttachmentMetadata<'a> {
+	pub id:                 i32,
+	pub device_key_info_id: i32,
+	pub attachment_id:      Cow<'a, str>,
+	pub description:        Cow<'a, str>,
+	pub file_name:          Cow<'a, str>,
+}
+#[derive(Insertable, Debug, Clone)]
+#[diesel(table_name = device_attachments)]
+pub struct DeviceAttachmentNew<'a> {
+	pub device_key_info_id: i32,
+	pub attachment_id:      Cow<'a, str>,
+	pub description:        Cow<'a, str>,
+	pub file_name:          Cow<'a, str>,
+	pub file_data:          Vec<u8>,
+}
+
 // Select Definitions
 
 macro_rules! select_def_const {
@@ -214,6 +244,26 @@ select_def_const! {
 		user_info::unique_identifier,
 		user_info::display_name,
 		user_info::associated_location_id,
+	)
+}
+
+select_def_const! {
+	DEVICE_ATTACHMENT_METADATA: DeviceAttachmentMetadataSelect = (
+		device_attachments::id,
+		device_attachments::device_key_info_id,
+		device_attachments::attachment_id,
+		device_attachments::description,
+		device_attachments::file_name,
+	)
+}
+select_def_const! {
+	DEVICE_ATTACHMENT: DeviceAttachmentSelect = (
+		device_attachments::id,
+		device_attachments::device_key_info_id,
+		device_attachments::attachment_id,
+		device_attachments::description,
+		device_attachments::file_name,
+		device_attachments::file_data,
 	)
 }
 

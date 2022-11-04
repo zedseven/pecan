@@ -1,6 +1,7 @@
 // Uses
 use std::borrow::Cow;
 
+use base64::{decode_config as base64_decode, STANDARD as BASE64_STANDARD};
 use chrono::Utc;
 use diesel::{
 	dsl::exists,
@@ -24,19 +25,23 @@ use diesel::{
 	SqliteConnection,
 };
 use rocket::{
+	data::ByteUnit,
 	get,
 	post,
 	routes,
 	serde::json::{json, Json, Value as JsonValue},
 	Route,
+	State,
 };
 
 use super::Routable;
 use crate::{
 	auth::AuthedUser,
+	config::AppConfig,
 	db::{models::*, schema, util::data_value_exists, DbConn},
 	error::{Context, Error, UserError},
-	util::{gen_new_component_id, gen_new_device_id},
+	routes::file_from_memory::FileFromMemory,
+	util::{gen_new_attachment_id, gen_new_component_id, gen_new_device_id},
 };
 
 /// The route for this section.
@@ -52,6 +57,7 @@ impl Routable for DevicesApi {
 			checkout_device,
 			create_device,
 			update_device,
+			get_attachment,
 			get_data_value_exists
 		]
 	};
@@ -64,12 +70,28 @@ pub struct UpdatedDeviceInfo {
 	location_id: i32,
 	column_data: Vec<SubmittedColumnData>,
 	components:  Vec<UpdatedDeviceComponent>,
+	attachments: Vec<UpdatedDeviceAttachment>,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdatedDeviceComponent {
 	component_id:   Option<String>,
 	component_type: String,
+}
+#[derive(Deserialize)]
+#[serde(untagged)]
+pub enum UpdatedDeviceAttachment {
+	#[serde(rename_all = "camelCase")]
+	New {
+		description: String,
+		file_name:   String,
+		file_data:   String,
+	},
+	#[serde(rename_all = "camelCase")]
+	Existing {
+		attachment_id: String,
+		description:   String,
+	},
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -99,7 +121,12 @@ pub struct ValueExistsQuery {
 
 /// Fetches the column definitions and locations.
 #[get("/definitions")]
-pub async fn get_definitions(user: &AuthedUser, conn: DbConn) -> Result<JsonValue, Error> {
+pub async fn get_definitions(
+	config: &State<AppConfig>,
+	user: &AuthedUser,
+	conn: DbConn,
+) -> Result<JsonValue, Error> {
+	let max_attachment_size = config.max_attachment_size.as_u64();
 	let user_clone = user.0.clone();
 	conn.run(move |c| {
 		// Uses
@@ -137,7 +164,7 @@ pub async fn get_definitions(user: &AuthedUser, conn: DbConn) -> Result<JsonValu
 			.with_context("unable to load the locations")?;
 
 		Ok(
-			json!({ "currentUser": user_clone, "columnDefinitions": column_results, "locations": location_results }),
+			json!({ "currentUser": user_clone, "columnDefinitions": column_results, "locations": location_results, "maxAttachmentSize": max_attachment_size }),
 		)
 	})
 	.await
@@ -152,7 +179,12 @@ pub async fn get_device(
 ) -> Result<JsonValue, Error> {
 	conn.run(move |c| {
 		// Uses
-		use schema::{device_components::dsl::*, device_key_info::dsl::*, locations::dsl::*};
+		use schema::{
+			device_attachments::dsl::*,
+			device_components::dsl::*,
+			device_key_info::dsl::*,
+			locations::dsl::*,
+		};
 
 		// Load from the database
 		let device_key_info_results = device_key_info
@@ -176,12 +208,20 @@ pub async fn get_device(
 			.get_results::<DeviceComponent<'_>>(c)
 			.with_context("unable to load the device components")?;
 
+		let device_attachment_results =
+			DeviceAttachmentMetadata::belonging_to(&device_key_info_results)
+				.order_by(file_name)
+				.select(DEVICE_ATTACHMENT_METADATA)
+				.get_results::<DeviceAttachmentMetadata<'_>>(c)
+				.with_context("unable to load the device attachments")?;
+
 		// Return the results
 		// This odd return format is to match how the data is returned in search
 		// results.
 		Ok(json!({
 			"deviceResults": (device_key_info_results, device_data_results),
-			"deviceComponents": device_component_results
+			"deviceComponents": device_component_results,
+			"deviceAttachments": device_attachment_results
 		}))
 	})
 	.await
@@ -361,31 +401,36 @@ pub async fn checkout_device(
 	.await
 }
 
+// TODO: CONSIDER BASE64-ENCODING FILE DATA OR SOMETHING ON SVELTE SIDE AND
+// SIMPLY INCLUDING IT IN THE REQUEST
 /// Adds a new device to the database.
 #[post("/create", data = "<device_info>")]
-pub async fn create_device(
+pub async fn create_device<'a>(
+	config: &State<AppConfig>,
 	_user: &AuthedUser,
 	conn: DbConn,
 	device_info: Json<UpdatedDeviceInfo>,
 ) -> Result<JsonValue, Error> {
-	upsert_device(conn, None, device_info).await
+	upsert_device(config.max_attachment_size, conn, None, device_info).await
 }
 
 /// Updates a device's data.
 #[post("/update/<device>", data = "<device_info>")]
 pub async fn update_device(
+	config: &State<AppConfig>,
 	_user: &AuthedUser,
 	conn: DbConn,
 	device: String,
 	device_info: Json<UpdatedDeviceInfo>,
 ) -> Result<JsonValue, Error> {
-	upsert_device(conn, Some(device), device_info).await
+	upsert_device(config.max_attachment_size, conn, Some(device), device_info).await
 }
 
 /// Inserts or updates device information, depending on if it's already present
 /// in the database. This is the implementation for [`create_device`] and
 /// [`update_device`].
 async fn upsert_device(
+	max_attachment_size: ByteUnit,
 	conn: DbConn,
 	device: Option<String>,
 	device_info: Json<UpdatedDeviceInfo>,
@@ -393,6 +438,7 @@ async fn upsert_device(
 	conn.run(move |c| {
 		// Uses
 		use schema::{
+			device_attachments::dsl::*,
 			device_components::dsl::*,
 			device_data::dsl::*,
 			device_key_info::dsl::*,
@@ -494,12 +540,103 @@ async fn upsert_device(
 					.with_context("unable to upsert into device_components")?;
 			}
 
+			// Update the device attachments - these are guaranteed to already exist, since
+			// new attachments are uploaded separately
+			for attachment in &device_info.attachments {
+				match attachment {
+					UpdatedDeviceAttachment::New {
+						description: provided_description,
+						file_name: provided_file_name,
+						file_data: provided_file_data,
+					} => {
+						// Generate a new attachment ID
+						let new_attachment_id = gen_new_attachment_id(tc, internal_id)
+							.with_context("unable to generate a new attachment ID")?;
+
+						// Decode the Base64-encoded file data
+						let binary_file_data = base64_decode(provided_file_data, BASE64_STANDARD)
+							.map_err(|_| {
+							Error::User(UserError::BadRequest("Invalid file data."))
+						})?;
+
+						// Ensure the file size is below the configured limit
+						if binary_file_data.len() as u64 > max_attachment_size.as_u64() {
+							return Err(Error::User(UserError::BadRequest(
+								"File size is above the configured limit.",
+							)));
+						}
+
+						// Insert the attachment
+						let default_file_name =
+							format!("{prepared_device_id}-{new_attachment_id}.bin");
+						insert_into(device_attachments)
+							.values(DeviceAttachmentNew {
+								device_key_info_id: internal_id,
+								attachment_id:      Cow::from(new_attachment_id.as_str()),
+								description:        Cow::from(provided_description.trim()),
+								file_name:          Cow::from(
+									if provided_file_name.trim().is_empty() {
+										default_file_name.as_str()
+									} else {
+										provided_file_name.trim()
+									},
+								),
+								file_data:          binary_file_data,
+							})
+							.execute(tc)
+							.with_context("unable to insert into device_attachments")?;
+					}
+					UpdatedDeviceAttachment::Existing {
+						attachment_id: provided_attachment_id,
+						description: provided_description,
+					} => {
+						// Update the attachment
+						update(
+							device_attachments
+								.filter(
+									schema::device_attachments::dsl::device_key_info_id
+										.eq(internal_id),
+								)
+								.filter(attachment_id.eq(provided_attachment_id.as_str())),
+						)
+						.set(description.eq(provided_description.as_str()))
+						.execute(tc)
+						.with_context("unable to update device_attachments")?;
+					}
+				}
+			}
+
 			Ok(())
 		})
 		.with_context("unable to update the device entry")?;
 
 		// Return the results
 		Ok(json!({ "deviceId": prepared_device_id }))
+	})
+	.await
+}
+
+#[get("/attachment/<device>/<attachment>")]
+pub async fn get_attachment(
+	_user: &AuthedUser,
+	conn: DbConn,
+	device: String,
+	attachment: String,
+) -> Result<FileFromMemory, Error> {
+	conn.run(move |c| {
+		// Uses
+		use schema::{device_attachments::dsl::*, device_key_info::dsl::*};
+
+		device_key_info
+			.inner_join(device_attachments)
+			.filter(device_id.eq(device.as_str()))
+			.filter(attachment_id.eq(attachment.as_str()))
+			.select(DEVICE_ATTACHMENT)
+			.get_result::<DeviceAttachment<'_>>(c)
+			.optional()
+			.with_context("unable to load a device attachment")?
+			.map(|data| FileFromMemory::new(data.file_name.as_ref(), data.file_data))
+			.ok_or_else(|| Error::User(UserError::NotFound("Attachment not found.")))
 	})
 	.await
 }

@@ -37,3 +37,21 @@ pub fn gen_new_component_id(conn: &mut SqliteConnection, device_id: i32) -> Resu
 		.with_context("unable to query the database for a component ID")
 	})
 }
+
+/// Generates a new attachment ID, and ensures it's not already in use with
+/// `device_id`.
+pub fn gen_new_attachment_id(conn: &mut SqliteConnection, device_id: i32) -> Result<String, Error> {
+	const LENGTH: usize = 2;
+
+	gen_new_id(NumericAscii, LENGTH, |new_id| {
+		use schema::device_attachments::dsl::*;
+
+		select(exists(
+			device_attachments
+				.filter(device_key_info_id.eq(device_id))
+				.filter(attachment_id.eq(new_id)),
+		))
+		.get_result::<bool>(conn)
+		.with_context("unable to query the database for a attachment ID")
+	})
+}

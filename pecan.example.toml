@@ -9,6 +9,14 @@ port = 8000
 # How many days a login token is valid for, before a user has to log in again.
 token_valid_days = 7
 
+# The maximum attachment size that can be uploaded. This setting only affects new attachments.
+# If you're changing this, make sure to also update default.limits.json below to allow room for the data to be uploaded.
+max_attachment_size = "3 MiB"
+
+# The size limits for data that is sent to the server.
+[default.limits]
+json = "5 MiB"
+
 
 # The database file. You can leave this be unless you need to change it.
 [default.databases.sqlite_database]

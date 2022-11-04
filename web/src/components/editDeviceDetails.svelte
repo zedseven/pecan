@@ -18,12 +18,17 @@
 		locationId: $selectedLocation, // Default to the selected location for ergonomics
 		columnData: {},
 		components: [],
+		attachments: [],
 	};
 	let newComponent = {
-		componentId: null,
 		componentType: '',
 	};
+	let newAttachment = {
+		fileElement: null,
+		description: '',
+	};
 	let deviceDataDuplicateFlags = {};
+	let newAttachmentIsTooLarge = false;
 	let locationsMap = {};
 
 	// Fetch the necessary information from the server
@@ -76,6 +81,13 @@
 					componentType: deviceComponent.componentType,
 				});
 			}
+			for (const deviceAttachment of deviceResult.value.deviceAttachments) {
+				deviceData.attachments.push({
+					attachmentId: deviceAttachment.attachmentId,
+					description: deviceAttachment.description,
+					fileName: deviceAttachment.fileName,
+				});
+			}
 
 			return Ok({});
 		})
@@ -93,6 +105,7 @@
 			locationId: null,
 			columnData: [],
 			components: [],
+			attachments: [],
 		};
 
 		// Validate the input data
@@ -109,11 +122,19 @@
 
 		// Add the existing new component entry to the list if necessary
 		addNewComponent();
+		await addNewAttachment();
+
+		// If the new attachment that was attempted to be added was too large, fail the update so that it can be addressed
+		if (newAttachmentIsTooLarge) {
+			alert('The new attachment is too large to be uploaded.');
+			return;
+		}
 
 		// Prepare and sanitise the input data
 		inputData.locationId = deviceData.locationId;
 		inputData.columnData = sanitiseObjectMapToArray(deviceData.columnData);
 		inputData.components = deviceData.components;
+		inputData.attachments = deviceData.attachments;
 
 		// Push it to the server
 		const addDeviceUrl = '/api/devices/create';
@@ -131,10 +152,63 @@
 
 	// Add a new component to the list
 	const addNewComponent = (event = undefined) => {
+		// Cancel any other events caused by a button click
 		if (event) event.preventDefault();
+
+		// Exit if there's nothing to do
 		if (!newComponent.componentType) return;
-		deviceData.components = [...deviceData.components, Object.assign({}, newComponent)];
+
+		// Add the new data to the list
+		deviceData.components = [
+			...deviceData.components,
+			Object.assign({}, { componentId: null, componentType: newComponent.componentType }),
+		];
+
+		// Clear the inputs
 		newComponent.componentType = '';
+	};
+
+	// Add a new attachment to the list
+	const addNewAttachment = async (event = undefined) => {
+		// Cancel any other events caused by a button click
+		if (event) event.preventDefault();
+
+		// Ensure the file size is below the configured limit
+		checkNewAttachmentSize();
+		if (newAttachmentIsTooLarge) return;
+
+		// Exit if there's nothing to do
+		if (
+			!newAttachment.fileElement.files ||
+			newAttachment.fileElement.files.length < 1 ||
+			!newAttachment.fileElement.files[0]
+		)
+			return;
+
+		// Encode the file data
+		let newFileData = await fileToBase64(newAttachment.fileElement.files[0]);
+
+		// Add the new data to the list
+		deviceData.attachments = [
+			...deviceData.attachments,
+			Object.assign(
+				{},
+				{
+					attachmentId: null,
+					description: newAttachment.description,
+					fileName: newAttachment.fileElement.files[0].name,
+					fileData: newFileData,
+				},
+			),
+		];
+
+		// Clear the inputs - the way this works is stupid
+		newAttachment.fileElement.value = null;
+		newAttachment.description = '';
+	};
+
+	const clearInputValue = (event) => {
+		event.target.value = null;
 	};
 
 	// Check if the newly-typed value exists in the database, and tell the user if it does
@@ -159,10 +233,43 @@
 		deviceDataDuplicateFlags[columnId] = existsResult.value.exists;
 	};
 
+	// Check if the newly-selected file is too large
+	const checkNewAttachmentSize = () => {
+		// Exit if there's nothing to do
+		if (
+			!newAttachment.fileElement.files ||
+			newAttachment.fileElement.files.length < 1 ||
+			!newAttachment.fileElement.files[0]
+		) {
+			newAttachmentIsTooLarge = false;
+			return;
+		}
+
+		// Ensure the file size is below the configured limit
+		newAttachmentIsTooLarge =
+			newAttachment.fileElement.files[0].size > definitions.maxAttachmentSize;
+	};
+
 	// Utility function to display a value as empty if it's null
 	const emptyIfNull = (value) => {
 		return value != null ? value : '';
 	};
+
+	const fileToBase64 = (file) =>
+		new Promise((resolve, reject) => {
+			const reader = new FileReader();
+			reader.readAsDataURL(file);
+			reader.onload = () => {
+				// Remove the data URI beginning (`data:mime;base64,`)
+				let resultParts = reader.result.split(',');
+				if (resultParts.length == 2) {
+					resolve(resultParts[1]);
+				} else {
+					reject();
+				}
+			};
+			reader.onerror = (error) => reject(error);
+		});
 </script>
 
 {#await loadingPromise}
@@ -270,19 +377,17 @@
 								</td>
 							{:else}
 								<td>
-									<span class="monospace noSelect smallerFont">&lt;Not Submitted&gt;</span>:
+									<span class="monospace noSelect smallerFont">&lt;Not Submitted&gt;</span>
 								</td>
 							{/if}
 							<td>
 								{#if viewMode}
-									<span class="detailEntry">
-										{emptyIfNull(deviceComponent.componentType)}
-									</span>
+									{emptyIfNull(deviceComponent.componentType)}
 								{:else}
 									<input
 										bind:value={deviceComponent.componentType}
 										id="component{deviceComponent.componentId}Type"
-										class="detailEntry detailInput"
+										class="detailInput"
 										type="text"
 										placeholder="Component Type"
 									/>
@@ -297,9 +402,85 @@
 								<input
 									bind:value={newComponent.componentType}
 									id="newComponentType"
-									class="detailEntry detailInput"
+									class="detailInput"
 									type="text"
 									placeholder="Component Type"
+								/>
+							</td>
+						</tr>
+					{/if}
+				</table>
+			</div>
+			<div id="attachmentDetails">
+				<h3>Attachments</h3>
+				<table>
+					{#each deviceData.attachments as deviceAttachment}
+						<tr>
+							{#if deviceAttachment.attachmentId}
+								<td>
+									<span class="monospace">{deviceId}-{deviceAttachment.attachmentId}</span>:
+								</td>
+							{:else}
+								<td>
+									<span class="monospace noSelect smallerFont">&lt;Not Submitted&gt;</span>
+								</td>
+							{/if}
+							<td>
+								{#if viewMode && deviceAttachment.attachmentId}
+									<a
+										href="/api/devices/attachment/{deviceId}/{deviceAttachment.attachmentId}"
+										target="_blank"
+										title="Click to Download"
+									>
+										<span class="monospace">
+											{emptyIfNull(deviceAttachment.fileName)}
+										</span>
+									</a>
+								{:else}
+									<span class="monospace">
+										{emptyIfNull(deviceAttachment.fileName)}
+									</span>
+								{/if}
+							</td>
+							<td>
+								{#if viewMode}
+									{emptyIfNull(deviceAttachment.description)}
+								{:else}
+									<input
+										bind:value={deviceAttachment.description}
+										id="attachment{deviceAttachment.attachmentId}Description"
+										class="detailEntry detailInput"
+										type="text"
+										placeholder="Attachment Description"
+									/>
+								{/if}
+							</td>
+						</tr>
+					{/each}
+					{#if !viewMode}
+						<tr>
+							<td><button on:click={addNewAttachment} class="maxWidth">Add to List</button></td>
+							<td>
+								<input
+									bind:this={newAttachment.fileElement}
+									id="newAttachmentFile"
+									class="detailInput"
+									type="file"
+									placeholder="Attachment File"
+									class:redBorder={newAttachmentIsTooLarge}
+									class:noRedBorder={!newAttachmentIsTooLarge}
+									title={newAttachmentIsTooLarge ? 'This file is too large!' : ''}
+									on:click={clearInputValue}
+									on:change={checkNewAttachmentSize}
+								/>
+							</td>
+							<td>
+								<input
+									bind:value={newAttachment.description}
+									id="newAttachmentDescription"
+									class="detailInput"
+									type="text"
+									placeholder="Description"
 								/>
 							</td>
 						</tr>
@@ -340,6 +521,11 @@
 	}
 
 	.redBorder {
-		border-color: red;
+		border: 2px solid red;
+		border-radius: 3px;
+	}
+	.noRedBorder {
+		border: 2px solid transparent;
+		border-radius: 3px;
 	}
 </style>

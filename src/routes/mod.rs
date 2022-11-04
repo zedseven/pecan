@@ -1,5 +1,6 @@
 // Uses
 use rocket::{
+	data::Limits,
 	fairing::AdHoc,
 	figment::{
 		providers::{Env, Format, Serialized, Toml},
@@ -8,7 +9,7 @@ use rocket::{
 	},
 	fs::FileServer,
 	Build,
-	Config,
+	Config as RocketConfig,
 	Rocket,
 	Route,
 };
@@ -22,6 +23,7 @@ use crate::{
 		CONFIG_FILE_ENV_OVERRIDE,
 		CONFIG_FILE_NAME,
 		CONFIG_FILE_PROFILE_ENV_NAME,
+		DEFAULT_JSON_LIMIT,
 	},
 	db::{init as init_db, DbConn},
 	routes::{admin::AdminApi, auth::AuthApi, devices::DevicesApi, svelte_pages::SveltePages},
@@ -31,6 +33,7 @@ use crate::{
 mod admin;
 mod auth;
 mod devices;
+mod file_from_memory;
 mod svelte_pages;
 
 // Constants
@@ -39,8 +42,12 @@ const API_ROOT: &str = "/api";
 /// Sets up the Rocket server.
 pub fn rocket() -> Rocket<Build> {
 	// Load the config
-	let config = Figment::from(Config::default())
+	let config = Figment::from(RocketConfig::default())
 		.join(Serialized::defaults(AppConfig::default()))
+		.merge((
+			"limits",
+			Limits::default().limit("json", DEFAULT_JSON_LIMIT()),
+		))
 		.merge(Toml::file(Env::var_or(CONFIG_FILE_ENV_OVERRIDE, CONFIG_FILE_NAME)).nested())
 		.merge(
 			Env::prefixed(CONFIG_ENV_PREFIX)
@@ -49,7 +56,7 @@ pub fn rocket() -> Rocket<Build> {
 		)
 		.select(Profile::from_env_or(
 			CONFIG_FILE_PROFILE_ENV_NAME,
-			Config::DEFAULT_PROFILE,
+			RocketConfig::DEFAULT_PROFILE,
 		));
 
 	// Prepare for launch

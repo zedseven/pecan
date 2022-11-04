@@ -26,6 +26,8 @@ pub enum InternalError {
 	Assertion(&'static str),
 	#[error("internal database error: {0}")]
 	Diesel(#[from] diesel::result::Error),
+	#[error("IO error: {0}")]
+	Io(#[from] std::io::Error),
 }
 
 impl InternalError {

@@ -1,9 +1,13 @@
+// Uses
+use rocket::data::{ByteUnit, ToByteUnit};
+
 // Constants
 pub const CONFIG_FILE_NAME: &str = "pecan.toml";
 pub const CONFIG_FILE_ENV_OVERRIDE: &str = "PECAN_CONFIG";
 pub const CONFIG_FILE_PROFILE_ENV_NAME: &str = "PECAN_PROFILE";
 pub const CONFIG_ENV_PREFIX: &str = "PECAN_";
-const RELEASE_DIST_PATH: &str = "dist";
+pub const RELEASE_DIST_PATH: &str = "dist";
+pub const DEFAULT_JSON_LIMIT: &'static dyn Fn() -> ByteUnit = &|| 5.mebibytes();
 
 // Config Struct
 
@@ -12,25 +16,28 @@ const RELEASE_DIST_PATH: &str = "dist";
 #[non_exhaustive]
 pub struct AppConfig {
 	/// The path to the directory to serve the front-end Svelte files from.
-	pub serve_path:       String,
+	pub serve_path:          String,
 	/// How many days a login token is valid for, before a user has to log in
 	/// again.
-	pub token_valid_days: u32,
+	pub token_valid_days:    u32,
+	/// The maximum attachment size allowed on upload.
+	pub max_attachment_size: ByteUnit,
 	/// Settings for LDAP-based authentication.
-	pub ldap:             Option<LdapSettings>,
+	pub ldap:                Option<LdapSettings>,
 }
 
 impl Default for AppConfig {
 	fn default() -> Self {
 		Self {
-			serve_path:       if cfg!(debug_assertions) {
+			serve_path:          if cfg!(debug_assertions) {
 				concat!(env!("CARGO_MANIFEST_DIR"), "/web/build")
 			} else {
 				RELEASE_DIST_PATH
 			}
 			.to_owned(),
-			token_valid_days: 7,
-			ldap:             None,
+			token_valid_days:    7,
+			max_attachment_size: 3.mebibytes(),
+			ldap:                None,
 		}
 	}
 }
