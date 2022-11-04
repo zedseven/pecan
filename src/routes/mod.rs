@@ -1,30 +1,9 @@
 // Uses
-use rocket::{
-	data::Limits,
-	fairing::AdHoc,
-	figment::{
-		providers::{Env, Format, Serialized, Toml},
-		Figment,
-		Profile,
-	},
-	fs::FileServer,
-	Build,
-	Config as RocketConfig,
-	Rocket,
-	Route,
-};
+use rocket::{fairing::AdHoc, fs::FileServer, Build, Rocket, Route};
 
 use crate::{
 	auth::LdapAuthenticator,
-	config::{
-		AppConfig,
-		LdapSettings,
-		CONFIG_ENV_PREFIX,
-		CONFIG_FILE_ENV_OVERRIDE,
-		CONFIG_FILE_NAME,
-		CONFIG_FILE_PROFILE_ENV_NAME,
-		DEFAULT_JSON_LIMIT,
-	},
+	config::{load_complete_config, validate_config, AppConfig, LdapSettings},
 	db::{init as init_db, DbConn},
 	routes::{admin::AdminApi, auth::AuthApi, devices::DevicesApi, svelte_pages::SveltePages},
 };
@@ -42,22 +21,7 @@ const API_ROOT: &str = "/api";
 /// Sets up the Rocket server.
 pub fn rocket() -> Rocket<Build> {
 	// Load the config
-	let config = Figment::from(RocketConfig::default())
-		.join(Serialized::defaults(AppConfig::default()))
-		.merge((
-			"limits",
-			Limits::default().limit("json", DEFAULT_JSON_LIMIT()),
-		))
-		.merge(Toml::file(Env::var_or(CONFIG_FILE_ENV_OVERRIDE, CONFIG_FILE_NAME)).nested())
-		.merge(
-			Env::prefixed(CONFIG_ENV_PREFIX)
-				.ignore(&["PROFILE"])
-				.global(),
-		)
-		.select(Profile::from_env_or(
-			CONFIG_FILE_PROFILE_ENV_NAME,
-			RocketConfig::DEFAULT_PROFILE,
-		));
+	let config = load_complete_config();
 
 	// Prepare for launch
 	let mut rocket = Rocket::custom(config)
@@ -110,24 +74,6 @@ pub fn rocket() -> Rocket<Build> {
 		.mount("/", FileServer::from(svelte_path.as_str()));
 
 	rocket
-}
-
-#[allow(clippy::unused_async)]
-async fn validate_config(rocket: Rocket<Build>) -> Result<Rocket<Build>, Rocket<Build>> {
-	// The `unwrap`s in this function are okay because Figment validates that the
-	// values are present anyways.
-
-	if rocket
-		.figment()
-		.extract_inner::<u32>("token_valid_days")
-		.unwrap()
-		< 1
-	{
-		eprintln!("token_valid_days must be a positive value");
-		return Err(rocket);
-	}
-
-	Ok(rocket)
 }
 
 /// The interface that allows a set of routes to be mounted on a path.

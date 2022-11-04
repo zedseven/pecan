@@ -1,13 +1,23 @@
 // Uses
-use rocket::data::{ByteUnit, ToByteUnit};
+use rocket::{
+	data::{ByteUnit, Limits, ToByteUnit},
+	figment::{
+		providers::{Env, Format, Serialized, Toml},
+		Figment,
+		Profile,
+	},
+	Build,
+	Config as RocketConfig,
+	Rocket,
+};
 
 // Constants
-pub const CONFIG_FILE_NAME: &str = "pecan.toml";
-pub const CONFIG_FILE_ENV_OVERRIDE: &str = "PECAN_CONFIG";
-pub const CONFIG_FILE_PROFILE_ENV_NAME: &str = "PECAN_PROFILE";
-pub const CONFIG_ENV_PREFIX: &str = "PECAN_";
-pub const RELEASE_DIST_PATH: &str = "dist";
-pub const DEFAULT_JSON_LIMIT: &'static dyn Fn() -> ByteUnit = &|| 5.mebibytes();
+const CONFIG_FILE_NAME: &str = "pecan.toml";
+const CONFIG_FILE_ENV_OVERRIDE: &str = "PECAN_CONFIG";
+const CONFIG_FILE_PROFILE_ENV_NAME: &str = "PECAN_PROFILE";
+const CONFIG_ENV_PREFIX: &str = "PECAN_";
+const RELEASE_DIST_PATH: &str = "dist";
+const DEFAULT_JSON_LIMIT: &'static dyn Fn() -> ByteUnit = &|| 5.mebibytes();
 
 // Config Struct
 
@@ -129,4 +139,42 @@ pub struct LdapReaderSettings {
 	pub distinguished_name: String,
 	/// The password for binding to the user.
 	pub password:           String,
+}
+
+/// Builds and loads the complete configuration for the program.
+pub fn load_complete_config() -> Figment {
+	Figment::from(RocketConfig::default())
+		.join(Serialized::defaults(AppConfig::default()))
+		.merge((
+			"limits",
+			Limits::default().limit("json", DEFAULT_JSON_LIMIT()),
+		))
+		.merge(Toml::file(Env::var_or(CONFIG_FILE_ENV_OVERRIDE, CONFIG_FILE_NAME)).nested())
+		.merge(
+			Env::prefixed(CONFIG_ENV_PREFIX)
+				.ignore(&["PROFILE"])
+				.global(),
+		)
+		.select(Profile::from_env_or(
+			CONFIG_FILE_PROFILE_ENV_NAME,
+			RocketConfig::DEFAULT_PROFILE,
+		))
+}
+
+/// Validates config settings. This is in a separate step from
+/// [`load_complete_config`] so that it can be included in Rocket's fairings.
+/// This makes it so that the error message is easily visible.
+#[allow(clippy::unused_async)]
+pub async fn validate_config(rocket: Rocket<Build>) -> Result<Rocket<Build>, Rocket<Build>> {
+	if rocket
+		.figment()
+		.extract_inner::<u32>("token_valid_days")
+		.expect("figment ensures the value is present")
+		< 1
+	{
+		eprintln!("token_valid_days must be a positive value");
+		return Err(rocket);
+	}
+
+	Ok(rocket)
 }
