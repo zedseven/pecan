@@ -7,10 +7,6 @@ CREATE TEMPORARY TABLE device_data_backup AS
 SELECT *
 FROM device_data;
 
-INSERT INTO device_data_backup
-SELECT *
-FROM device_data;
-
 DROP TABLE device_data;
 
 CREATE TABLE device_data
