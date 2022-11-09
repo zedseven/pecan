@@ -5,6 +5,7 @@ use rocket::{Build, Rocket};
 use rocket_sync_db_pools::database;
 
 // Modules
+pub mod change_log;
 pub mod enums;
 pub mod functions;
 pub mod models;

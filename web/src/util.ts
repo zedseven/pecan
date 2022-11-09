@@ -86,3 +86,8 @@ export const redirectIfNotLoggedIn = () => {
 		if (!loggedIn.ok || !loggedIn.value) window.location.replace(loginLocation);
 	});
 };
+
+// Utility function to display a value as empty if it's null
+export const emptyIfNull = (value: string) => {
+	return value != null ? value : '';
+};

@@ -2,7 +2,6 @@
 use std::borrow::Cow;
 
 use base64::{decode_config as base64_decode, STANDARD as BASE64_STANDARD};
-use chrono::Utc;
 use diesel::{
 	dsl::exists,
 	insert_into,
@@ -38,7 +37,7 @@ use super::Routable;
 use crate::{
 	auth::AuthedUser,
 	config::AppConfig,
-	db::{models::*, schema, util::data_value_exists, DbConn},
+	db::{change_log::*, models::*, schema, util::data_value_exists, DbConn},
 	error::{Context, Error, UserError},
 	routes::file_from_memory::FileFromMemory,
 	util::{gen_new_attachment_id, gen_new_component_id, gen_new_device_id},
@@ -178,42 +177,13 @@ pub async fn get_device(
 	device: String,
 ) -> Result<JsonValue, Error> {
 	conn.run(move |c| {
-		// Uses
-		use schema::{
-			device_attachments::dsl::*,
-			device_components::dsl::*,
-			device_key_info::dsl::*,
-			locations::dsl::*,
-		};
-
-		// Load from the database
-		let device_key_info_results = device_key_info
-			.filter(device_id.eq(device.as_str()))
-			.inner_join(locations)
-			.select(DEVICE_INFO)
-			.get_result::<DeviceInfo<'_>>(c)
-			.optional()
-			.with_context("unable to load device info")?;
-		if device_key_info_results.is_none() {
-			return Err(UserError::NotFound("Invalid device ID.").into());
-		}
-		let device_key_info_results = device_key_info_results.unwrap();
-
-		let device_data_results = DeviceData::belonging_to(&device_key_info_results)
-			.get_results::<DeviceData<'_>>(c)
-			.with_context("unable to load the device data")?;
-
-		let device_component_results = DeviceComponent::belonging_to(&device_key_info_results)
-			.order_by(component_type)
-			.get_results::<DeviceComponent<'_>>(c)
-			.with_context("unable to load the device components")?;
-
-		let device_attachment_results =
-			DeviceAttachmentMetadata::belonging_to(&device_key_info_results)
-				.order_by(file_name)
-				.select(DEVICE_ATTACHMENT_METADATA)
-				.get_results::<DeviceAttachmentMetadata<'_>>(c)
-				.with_context("unable to load the device attachments")?;
+		let (
+			device_key_info_results,
+			device_data_results,
+			device_component_results,
+			device_attachment_results,
+			device_change_results,
+		) = load_device_info(c, device.as_str())?;
 
 		// Return the results
 		// This odd return format is to match how the data is returned in search
@@ -221,10 +191,93 @@ pub async fn get_device(
 		Ok(json!({
 			"deviceResults": (device_key_info_results, device_data_results),
 			"deviceComponents": device_component_results,
-			"deviceAttachments": device_attachment_results
+			"deviceAttachments": device_attachment_results,
+			"deviceChanges": device_change_results,
 		}))
 	})
 	.await
+}
+
+pub type CompleteDeviceInfo<'a> = (
+	DeviceInfo<'a>,
+	Vec<DeviceData<'a>>,
+	Vec<DeviceComponent<'a>>,
+	Vec<DeviceAttachmentMetadata<'a>>,
+	Vec<DeviceChangeDisplay<'a>>,
+);
+/// Fetches a device by ID.
+pub fn load_device_info<'a, 'b>(
+	conn: &'a mut SqliteConnection,
+	device: &str,
+) -> Result<CompleteDeviceInfo<'b>, Error> {
+	// Uses
+	use schema::{
+		device_attachments::dsl::*,
+		device_changes::dsl::*,
+		device_components::dsl::*,
+		device_key_info::dsl::*,
+		locations::dsl::*,
+		user_info::dsl::*,
+	};
+
+	// Load from the database
+	let device_key_info_result = device_key_info
+		.filter(device_id.eq(device))
+		.inner_join(locations)
+		.select((
+			schema::device_key_info::dsl::id,
+			device_id,
+			location_id,
+			name,
+			device_changes
+				.select(timestamp)
+				.filter(
+					schema::device_changes::dsl::device_key_info_id
+						.eq(schema::device_key_info::dsl::id),
+				)
+				.order_by(timestamp.desc())
+				.limit(1)
+				.single_value()
+				.assume_not_null(),
+		))
+		.get_result::<DeviceInfo<'_>>(conn)
+		.optional()
+		.with_context("unable to load device info")?;
+	if device_key_info_result.is_none() {
+		return Err(UserError::NotFound("Invalid device ID.").into());
+	}
+	let device_key_info_result = device_key_info_result.unwrap();
+
+	let device_data_results = DeviceData::belonging_to(&device_key_info_result)
+		.get_results::<DeviceData<'_>>(conn)
+		.with_context("unable to load the device data")?;
+
+	let device_component_results = DeviceComponent::belonging_to(&device_key_info_result)
+		.order_by(component_type)
+		.get_results::<DeviceComponent<'_>>(conn)
+		.with_context("unable to load the device components")?;
+
+	let device_attachment_results = DeviceAttachmentMetadata::belonging_to(&device_key_info_result)
+		.order_by(file_name)
+		.select(DEVICE_ATTACHMENT_METADATA)
+		.get_results::<DeviceAttachmentMetadata<'_>>(conn)
+		.with_context("unable to load the device attachments")?;
+
+	let device_change_results = DeviceChange::belonging_to(&device_key_info_result)
+		.left_join(user_info)
+		.select(DEVICE_CHANGE())
+		.order_by(timestamp.desc())
+		.get_results::<DeviceChangeDisplay<'_>>(conn)
+		.with_context("unable to load the device changes")?;
+
+	// Return the results
+	Ok((
+		device_key_info_result,
+		device_data_results,
+		device_component_results,
+		device_attachment_results,
+		device_change_results,
+	))
 }
 
 fn perform_search(
@@ -299,7 +352,14 @@ pub async fn search_devices(
 			    dki.device_id,
 			    dki.location_id,
 			    l.name AS location,
-			    dki.last_updated
+			    (
+					SELECT
+						dc.timestamp
+					FROM device_changes AS dc
+					WHERE dc.device_key_info_id = dki.id
+					ORDER BY dc.timestamp DESC
+					LIMIT 1
+				) AS last_updated
 			FROM device_key_info AS dki
 			INNER JOIN locations AS l ON l.id = dki.location_id
 			WHERE
@@ -331,7 +391,7 @@ pub async fn search_devices(
 			}
 			search_sql.push_str("))\n");
 		}
-		search_sql.push_str("ORDER BY dki.last_updated DESC");
+		search_sql.push_str("ORDER BY last_updated DESC");
 		// dbg!(&search_sql);
 		let mut device_key_info_query = sql_query(search_sql)
 			.into_boxed()
@@ -355,10 +415,11 @@ pub async fn search_devices(
 
 #[post("/checkout", data = "<checkout_info>")]
 pub async fn checkout_device(
-	_user: &AuthedUser,
+	user: &AuthedUser,
 	conn: DbConn,
 	checkout_info: Json<CheckoutInfo>,
 ) -> Result<JsonValue, Error> {
+	let user_id_value = user.0.id;
 	conn.run(move |c| {
 		// Uses
 		use schema::{device_key_info::dsl::*, locations::dsl::*};
@@ -370,26 +431,51 @@ pub async fn checkout_device(
 			.get_result::<String>(c)
 			.optional()
 			.with_context("unable to query the database for location existence")?;
-		if location_name.is_none() {
-			return Err(UserError::NotFound("Invalid location.").into());
-		}
-		let location_name = location_name.unwrap();
+		let location_name = if let Some(location_name_value) = location_name {
+			location_name_value
+		} else {
+			return Err(UserError::BadRequest("Invalid location.").into());
+		};
 
-		// Fetch the device's internal ID
-		let internal_id = device_key_info
-			.filter(device_id.eq(checkout_info.device_id.as_str()))
-			.select(schema::device_key_info::dsl::id)
-			.get_result::<i32>(c)
-			.with_context("unable to get the internal ID associated with the provided device ID")?;
+		c.transaction::<_, Error, _>(|tc| {
+			// Get the old value
+			let old_device_key_info = device_key_info
+				.filter(device_id.eq(checkout_info.device_id.as_str()))
+				.get_result::<DeviceKeyInfo<'_>>(tc)
+				.optional()
+				.with_context("unable to query the database for device_key_info existence")?;
+			let old_device_key_info = if let Some(old_device_key_info_value) = old_device_key_info {
+				old_device_key_info_value
+			} else {
+				return Err(UserError::BadRequest("Invalid device ID.").into());
+			};
 
-		// Update the device entry
-		update(device_key_info.filter(schema::device_key_info::dsl::id.eq(internal_id)))
-			.set((
-				location_id.eq(checkout_info.location_id),
-				last_updated.eq(Utc::now().naive_utc()),
-			))
-			.execute(c)
+			// Update the device entry
+			update(
+				device_key_info.filter(schema::device_key_info::dsl::id.eq(old_device_key_info.id)),
+			)
+			.set(location_id.eq(checkout_info.location_id))
+			.execute(tc)
 			.with_context("unable to update device_key_info")?;
+
+			// Log the change in the database
+			if old_device_key_info.location_id != checkout_info.location_id {
+				let diff = DeviceDiff {
+					device_key_info:    Some(DeviceKeyInfoDiff::Edit(DeviceKeyInfoDiffData {
+						location_id: Some(checkout_info.location_id),
+					})),
+					device_data:        None,
+					device_components:  None,
+					device_attachments: None,
+				};
+
+				log_change(tc, old_device_key_info.id, user_id_value, &diff)
+					.with_context("unable to log device change")?;
+			}
+
+			Ok(())
+		})
+		.with_context("unable to update the device entry")?;
 
 		// Return the results
 		Ok(json!({
@@ -401,29 +487,41 @@ pub async fn checkout_device(
 	.await
 }
 
-// TODO: CONSIDER BASE64-ENCODING FILE DATA OR SOMETHING ON SVELTE SIDE AND
-// SIMPLY INCLUDING IT IN THE REQUEST
 /// Adds a new device to the database.
 #[post("/create", data = "<device_info>")]
 pub async fn create_device<'a>(
 	config: &State<AppConfig>,
-	_user: &AuthedUser,
+	user: &AuthedUser,
 	conn: DbConn,
 	device_info: Json<UpdatedDeviceInfo>,
 ) -> Result<JsonValue, Error> {
-	upsert_device(config.max_attachment_size, conn, None, device_info).await
+	upsert_device(
+		config.max_attachment_size,
+		conn,
+		None,
+		device_info,
+		user.0.id,
+	)
+	.await
 }
 
 /// Updates a device's data.
 #[post("/update/<device>", data = "<device_info>")]
 pub async fn update_device(
 	config: &State<AppConfig>,
-	_user: &AuthedUser,
+	user: &AuthedUser,
 	conn: DbConn,
 	device: String,
 	device_info: Json<UpdatedDeviceInfo>,
 ) -> Result<JsonValue, Error> {
-	upsert_device(config.max_attachment_size, conn, Some(device), device_info).await
+	upsert_device(
+		config.max_attachment_size,
+		conn,
+		Some(device),
+		device_info,
+		user.0.id,
+	)
+	.await
 }
 
 /// Inserts or updates device information, depending on if it's already present
@@ -434,6 +532,7 @@ async fn upsert_device(
 	conn: DbConn,
 	device: Option<String>,
 	device_info: Json<UpdatedDeviceInfo>,
+	user_id_value: i32,
 ) -> Result<JsonValue, Error> {
 	conn.run(move |c| {
 		// Uses
@@ -456,10 +555,13 @@ async fn upsert_device(
 		}
 
 		// Generate a new device ID if one wasn't provided
-		let prepared_device_id = if let Some(provided_device_id) = device {
-			provided_device_id
+		let (is_new, prepared_device_id) = if let Some(provided_device_id) = device {
+			(false, provided_device_id)
 		} else {
-			gen_new_device_id(c).with_context("unable to generate a new device ID")?
+			(
+				true,
+				gen_new_device_id(c).with_context("unable to generate a new device ID")?,
+			)
 		};
 
 		// Technically there should be verification that duplicate values aren't being
@@ -469,19 +571,36 @@ async fn upsert_device(
 
 		// Begin the transaction
 		c.transaction::<_, Error, _>(|tc| {
+			let old_values = if is_new {
+				None
+			} else {
+				// Pull the existing values
+				let (
+					device_key_info_result,
+					device_data_results,
+					device_component_results,
+					device_attachment_results,
+					_,
+				) = load_device_info(tc, prepared_device_id.as_str())?;
+				Some((
+					device_key_info_result,
+					device_data_results,
+					device_component_results,
+					device_attachment_results,
+				))
+			};
+
+			let insertable_device_key_info = DeviceKeyInfoNew {
+				device_id:   Cow::from(prepared_device_id.as_str()),
+				location_id: device_info.location_id,
+			};
+
 			// Upsert the main device entry
 			insert_into(device_key_info)
-				.values(DeviceKeyInfoNew {
-					device_id:    Cow::from(prepared_device_id.as_str()),
-					location_id:  device_info.location_id,
-					last_updated: Utc::now().naive_utc(),
-				})
+				.values(&insertable_device_key_info)
 				.on_conflict(device_id)
 				.do_update()
-				.set((
-					location_id.eq(excluded(location_id)),
-					last_updated.eq(excluded(last_updated)),
-				))
+				.set((location_id.eq(excluded(location_id)),))
 				.execute(tc)
 				.with_context("unable to upsert into device_key_info")?;
 
@@ -495,13 +614,18 @@ async fn upsert_device(
 				)?;
 
 			// Upsert the device column data
+			let mut insertable_device_data = Vec::new();
 			for column in &device_info.column_data {
+				insertable_device_data.push(DeviceDataNew {
+					device_key_info_id:   internal_id,
+					column_definition_id: column.column_definition_id,
+					data_value:           Cow::from(column.data_value.as_str()),
+				});
+			}
+
+			for insertable_record in &insertable_device_data {
 				insert_into(device_data)
-					.values(DeviceDataNew {
-						device_key_info_id:   internal_id,
-						column_definition_id: column.column_definition_id,
-						data_value:           Cow::from(column.data_value.as_str()),
-					})
+					.values(insertable_record)
 					.on_conflict((
 						schema::device_data::dsl::device_key_info_id,
 						column_definition_id,
@@ -513,6 +637,7 @@ async fn upsert_device(
 			}
 
 			// Upsert the device components
+			let mut insertable_device_components = Vec::new();
 			for component in &device_info.components {
 				// Generate a new component ID if one wasn't provided
 				let prepared_component_id =
@@ -523,13 +648,17 @@ async fn upsert_device(
 							.with_context("unable to generate a new component ID")?
 					};
 
+				insertable_device_components.push(DeviceComponentNew {
+					device_key_info_id: internal_id,
+					component_id:       Cow::from(prepared_component_id),
+					component_type:     Cow::from(component.component_type.as_str()),
+				});
+			}
+
+			for insertable_record in &insertable_device_components {
 				// Upsert the component
 				insert_into(device_components)
-					.values(DeviceComponentNew {
-						device_key_info_id: internal_id,
-						component_id:       Cow::from(prepared_component_id.as_str()),
-						component_type:     Cow::from(component.component_type.as_str()),
-					})
+					.values(insertable_record)
 					.on_conflict((
 						schema::device_components::dsl::device_key_info_id,
 						component_id,
@@ -540,8 +669,8 @@ async fn upsert_device(
 					.with_context("unable to upsert into device_components")?;
 			}
 
-			// Update the device attachments - these are guaranteed to already exist, since
-			// new attachments are uploaded separately
+			// Update the device attachments
+			let mut insertable_device_attachments = Vec::new();
 			for attachment in &device_info.attachments {
 				match attachment {
 					UpdatedDeviceAttachment::New {
@@ -566,30 +695,51 @@ async fn upsert_device(
 							)));
 						}
 
-						// Insert the attachment
 						let default_file_name =
 							format!("{prepared_device_id}-{new_attachment_id}.bin");
-						insert_into(device_attachments)
-							.values(DeviceAttachmentNew {
+						insertable_device_attachments.push(DeviceAttachmentUpsert::New(
+							DeviceAttachmentNew {
 								device_key_info_id: internal_id,
-								attachment_id:      Cow::from(new_attachment_id.as_str()),
+								attachment_id:      Cow::from(new_attachment_id),
 								description:        Cow::from(provided_description.trim()),
-								file_name:          Cow::from(
-									if provided_file_name.trim().is_empty() {
-										default_file_name.as_str()
-									} else {
-										provided_file_name.trim()
-									},
-								),
+								file_name:          if provided_file_name.trim().is_empty() {
+									Cow::from(default_file_name)
+								} else {
+									Cow::from(provided_file_name.trim())
+								},
 								file_data:          binary_file_data,
-							})
-							.execute(tc)
-							.with_context("unable to insert into device_attachments")?;
+							},
+						));
 					}
 					UpdatedDeviceAttachment::Existing {
 						attachment_id: provided_attachment_id,
 						description: provided_description,
 					} => {
+						insertable_device_attachments.push(DeviceAttachmentUpsert::Existing(
+							DeviceAttachmentExisting {
+								device_key_info_id: internal_id,
+								attachment_id:      Cow::from(provided_attachment_id.as_str()),
+								description:        Cow::from(provided_description.as_str()),
+							},
+						));
+					}
+				}
+			}
+
+			for insertable_record in &insertable_device_attachments {
+				match insertable_record {
+					DeviceAttachmentUpsert::New(new_record) => {
+						// Insert the attachment
+						insert_into(device_attachments)
+							.values(new_record)
+							.execute(tc)
+							.with_context("unable to insert into device_attachments")?;
+					}
+					DeviceAttachmentUpsert::Existing(DeviceAttachmentExisting {
+						attachment_id: provided_attachment_id,
+						description: provided_description,
+						..
+					}) => {
 						// Update the attachment
 						update(
 							device_attachments
@@ -597,13 +747,38 @@ async fn upsert_device(
 									schema::device_attachments::dsl::device_key_info_id
 										.eq(internal_id),
 								)
-								.filter(attachment_id.eq(provided_attachment_id.as_str())),
+								.filter(attachment_id.eq(provided_attachment_id.as_ref())),
 						)
-						.set(description.eq(provided_description.as_str()))
+						.set(description.eq(provided_description.as_ref()))
 						.execute(tc)
 						.with_context("unable to update device_attachments")?;
 					}
 				}
+			}
+
+			// Calculate the diff
+			let change_diff = if let Some(before) = old_values {
+				DeviceDiff::calculate_diff(
+					&before,
+					&(
+						insertable_device_key_info,
+						insertable_device_data,
+						insertable_device_components,
+						insertable_device_attachments,
+					),
+				)
+			} else {
+				Some(DeviceDiff::from(&(
+					insertable_device_key_info,
+					insertable_device_data,
+					insertable_device_components,
+					insertable_device_attachments,
+				)))
+			};
+
+			if let Some(diff) = change_diff {
+				log_change(tc, internal_id, user_id_value, &diff)
+					.with_context("unable to log device change")?;
 			}
 
 			Ok(())

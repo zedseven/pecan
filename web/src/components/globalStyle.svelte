@@ -51,6 +51,9 @@
 		box-sizing: border-box;
 		width: 100%;
 	}
+	.italicised {
+		font-style: italic;
+	}
 	.monospace {
 		font-family: monospace, monospace;
 	}

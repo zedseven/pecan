@@ -104,17 +104,15 @@ pub struct LocationDefinitionNew<'a> {
 #[diesel(table_name = device_key_info)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceKeyInfo<'a> {
-	pub id:           i32,
-	pub device_id:    Cow<'a, str>,
-	pub location_id:  i32,
-	pub last_updated: NaiveDateTime,
+	pub id:          i32,
+	pub device_id:   Cow<'a, str>,
+	pub location_id: i32,
 }
 #[derive(Insertable, Debug, Clone)]
 #[diesel(table_name = device_key_info)]
 pub struct DeviceKeyInfoNew<'a> {
-	pub device_id:    Cow<'a, str>,
-	pub location_id:  i32,
-	pub last_updated: NaiveDateTime,
+	pub device_id:   Cow<'a, str>,
+	pub location_id: i32,
 }
 
 #[derive(Associations, Identifiable, Queryable, Serialize, Deserialize, Debug, Clone)]
@@ -171,6 +169,11 @@ pub struct DeviceAttachmentMetadata<'a> {
 	pub description:        Cow<'a, str>,
 	pub file_name:          Cow<'a, str>,
 }
+#[derive(Debug, Clone)]
+pub enum DeviceAttachmentUpsert<'a> {
+	New(DeviceAttachmentNew<'a>),
+	Existing(DeviceAttachmentExisting<'a>),
+}
 #[derive(Insertable, Debug, Clone)]
 #[diesel(table_name = device_attachments)]
 pub struct DeviceAttachmentNew<'a> {
@@ -179,6 +182,31 @@ pub struct DeviceAttachmentNew<'a> {
 	pub description:        Cow<'a, str>,
 	pub file_name:          Cow<'a, str>,
 	pub file_data:          Vec<u8>,
+}
+#[derive(Debug, Clone)]
+pub struct DeviceAttachmentExisting<'a> {
+	pub device_key_info_id: i32,
+	pub attachment_id:      Cow<'a, str>,
+	pub description:        Cow<'a, str>,
+}
+
+#[derive(Associations, Identifiable, Queryable, Serialize, Deserialize, Debug, Clone)]
+#[diesel(table_name = device_changes, belongs_to(DeviceInfo<'_>, foreign_key = device_key_info_id), belongs_to(User, foreign_key = user_id))]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceChange<'a> {
+	pub id:                 i32,
+	pub device_key_info_id: i32,
+	pub timestamp:          NaiveDateTime,
+	pub user_id:            Option<i32>,
+	pub change:             Cow<'a, str>,
+}
+#[derive(Insertable, Debug, Clone)]
+#[diesel(table_name = device_changes)]
+pub struct DeviceChangeNew<'a> {
+	pub device_key_info_id: i32,
+	pub timestamp:          NaiveDateTime,
+	pub user_id:            i32,
+	pub change:             Cow<'a, str>,
 }
 
 // Select Definitions
@@ -267,15 +295,6 @@ select_def_const! {
 	)
 }
 
-select_def_const! {
-	DEVICE_INFO: DeviceInfoSelect = (
-		device_key_info::id,
-		device_key_info::device_id,
-		device_key_info::location_id,
-		locations::name,
-		device_key_info::last_updated,
-	)
-}
 #[derive(Identifiable, Queryable, Serialize, Deserialize, Debug)]
 #[diesel(table_name = device_key_info)]
 #[serde(rename_all = "camelCase")]
@@ -340,4 +359,26 @@ pub struct ColumnDefinitionSelected<'a> {
 	pub exclusively_possible_values: bool,
 	pub default_value_id:            Option<i32>,
 	pub default_value:               Option<Cow<'a, str>>,
+}
+
+select_def_fn! {
+	DEVICE_CHANGE: DeviceChangeSelect = (
+		(device_changes::id),
+		(device_changes::device_key_info_id),
+		(device_changes::timestamp),
+		(device_changes::user_id),
+		(user_info::display_name.nullable(), Nullable<user_info::display_name>),
+		(device_changes::change),
+	)
+}
+#[derive(Identifiable, Queryable, Serialize, Deserialize, Debug)]
+#[diesel(table_name = device_key_info)]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceChangeDisplay<'a> {
+	pub id:                 i32,
+	pub device_key_info_id: i32,
+	pub timestamp:          NaiveDateTime,
+	pub user_id:            Option<i32>,
+	pub user:               Option<Cow<'a, str>>,
+	pub change:             Cow<'a, str>,
 }

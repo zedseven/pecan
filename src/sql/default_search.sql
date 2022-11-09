@@ -6,7 +6,14 @@ SELECT
 	dki.device_id,
 	dki.location_id,
 	l.name AS location,
-	dki.last_updated
+	(
+		SELECT
+			dc.timestamp
+		FROM device_changes AS dc
+		WHERE dc.device_key_info_id = dki.id
+		ORDER BY dc.timestamp DESC
+		LIMIT 1
+	) AS last_updated
 FROM device_key_info AS dki
 INNER JOIN locations AS l
     ON l.id = dki.location_id
@@ -30,4 +37,4 @@ WHERE
 	    AND cd.show_in_main_page != 0
 		AND dd.data_value LIKE cpv.value
 )
-ORDER BY dki.last_updated DESC
+ORDER BY last_updated DESC

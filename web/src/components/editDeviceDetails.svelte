@@ -5,9 +5,17 @@
 	import couldntConnect from './couldntConnect.svelte';
 	import locationSelector from './locationSelector.svelte';
 	import { ViewMode } from './editDevice.svelte';
+	import deviceChanges from './deviceChanges.svelte';
 	import barcode from './barcode.svelte';
 	import { fetchDefinitions, selectedLocation } from '../stores';
-	import { getData, Ok, postData, redirectIfNotLoggedIn, sanitiseObjectMapToArray } from '../util';
+	import {
+		getData,
+		Ok,
+		postData,
+		redirectIfNotLoggedIn,
+		sanitiseObjectMapToArray,
+		emptyIfNull,
+	} from '../util';
 
 	// Component Data
 	export let deviceId = null;
@@ -19,6 +27,7 @@
 		columnData: {},
 		components: [],
 		attachments: [],
+		changes: [],
 	};
 	let newComponent = {
 		componentType: '',
@@ -30,6 +39,7 @@
 	let deviceDataDuplicateFlags = {};
 	let newAttachmentIsTooLarge = false;
 	let locationsMap = {};
+	let columnDefinitionsMap = {};
 
 	// Fetch the necessary information from the server
 	const deviceUrl = '/api/devices/get/';
@@ -51,13 +61,16 @@
 				locationsMap[locationEntry.id] = locationEntry.name;
 			}
 
-			// Set up the deviceData for binding
+			// Set up the deviceData for binding, prepare the duplicate tracker, and build the column definition ID -> column name map
 			for (const columnDefinition of definitions.columnDefinitions) {
 				deviceData.columnData[columnDefinition[0].id] = {
 					columnDefinitionId: columnDefinition[0].id,
 					dataValue: columnDefinition[0].defaultValue,
 				};
+
 				deviceDataDuplicateFlags[columnDefinition[0].id] = false;
+
+				columnDefinitionsMap[columnDefinition[0].id] = columnDefinition[0].name;
 			}
 
 			// Parse the device info if there's a device ID
@@ -88,6 +101,14 @@
 					fileName: deviceAttachment.fileName,
 				});
 			}
+			for (const deviceChange of deviceResult.value.deviceChanges) {
+				deviceData.changes.push({
+					timestamp: deviceChange.timestamp,
+					user: deviceChange.user,
+					change: JSON.parse(deviceChange.change),
+				});
+			}
+			console.log(deviceData.changes);
 
 			return Ok({});
 		})
@@ -250,11 +271,6 @@
 			newAttachment.fileElement.files[0].size > definitions.maxAttachmentSize;
 	};
 
-	// Utility function to display a value as empty if it's null
-	const emptyIfNull = (value) => {
-		return value != null ? value : '';
-	};
-
 	const fileToBase64 = (file) =>
 		new Promise((resolve, reject) => {
 			const reader = new FileReader();
@@ -366,130 +382,143 @@
 					</tr>
 				{/each}
 			</table>
-			<div id="componentDetails">
-				<h3>Components</h3>
-				<table>
-					{#each deviceData.components as deviceComponent}
-						<tr>
-							{#if deviceComponent.componentId}
-								<td>
-									<span class="monospace">{deviceId}-{deviceComponent.componentId}</span>:
-								</td>
-							{:else}
-								<td>
-									<span class="monospace noSelect smallerFont">&lt;Not Submitted&gt;</span>
-								</td>
-							{/if}
-							<td>
-								{#if viewMode}
-									{emptyIfNull(deviceComponent.componentType)}
+			{#if !viewMode || deviceData.components.length > 0}
+				<div id="componentDetails">
+					<h3>Components</h3>
+					<table>
+						{#each deviceData.components as deviceComponent}
+							<tr>
+								{#if deviceComponent.componentId}
+									<td>
+										<span class="monospace">{deviceId}-{deviceComponent.componentId}</span>:
+									</td>
 								{:else}
+									<td>
+										<span class="italicised noSelect smallerFont">&lt;Not Submitted&gt;</span>
+									</td>
+								{/if}
+								<td>
+									{#if viewMode}
+										{emptyIfNull(deviceComponent.componentType)}
+									{:else}
+										<input
+											bind:value={deviceComponent.componentType}
+											id="component{deviceComponent.componentId}Type"
+											class="detailInput"
+											type="text"
+											placeholder="Component Type"
+										/>
+									{/if}
+								</td>
+							</tr>
+						{/each}
+						{#if !viewMode}
+							<tr>
+								<td><button on:click={addNewComponent} class="maxWidth">Add to List</button></td>
+								<td>
 									<input
-										bind:value={deviceComponent.componentType}
-										id="component{deviceComponent.componentId}Type"
+										bind:value={newComponent.componentType}
+										id="newComponentType"
 										class="detailInput"
 										type="text"
 										placeholder="Component Type"
 									/>
+								</td>
+							</tr>
+						{/if}
+					</table>
+				</div>
+			{/if}
+			{#if !viewMode || deviceData.attachments.length > 0}
+				<div id="attachmentDetails">
+					<h3>Attachments</h3>
+					<table>
+						{#each deviceData.attachments as deviceAttachment}
+							<tr>
+								{#if deviceAttachment.attachmentId}
+									<td>
+										<span class="monospace">{deviceId}-{deviceAttachment.attachmentId}</span>:
+									</td>
+								{:else}
+									<td>
+										<span class="italicised noSelect smallerFont">&lt;Not Submitted&gt;</span>
+									</td>
 								{/if}
-							</td>
-						</tr>
-					{/each}
-					{#if !viewMode}
-						<tr>
-							<td><button on:click={addNewComponent} class="maxWidth">Add to List</button></td>
-							<td>
-								<input
-									bind:value={newComponent.componentType}
-									id="newComponentType"
-									class="detailInput"
-									type="text"
-									placeholder="Component Type"
-								/>
-							</td>
-						</tr>
-					{/if}
-				</table>
-			</div>
-			<div id="attachmentDetails">
-				<h3>Attachments</h3>
-				<table>
-					{#each deviceData.attachments as deviceAttachment}
-						<tr>
-							{#if deviceAttachment.attachmentId}
 								<td>
-									<span class="monospace">{deviceId}-{deviceAttachment.attachmentId}</span>:
-								</td>
-							{:else}
-								<td>
-									<span class="monospace noSelect smallerFont">&lt;Not Submitted&gt;</span>
-								</td>
-							{/if}
-							<td>
-								{#if viewMode && deviceAttachment.attachmentId}
-									<a
-										href="/api/devices/attachment/{deviceId}/{deviceAttachment.attachmentId}"
-										target="_blank"
-										title="Click to Download"
-									>
+									{#if viewMode && deviceAttachment.attachmentId}
+										<a
+											href="/api/devices/attachment/{deviceId}/{deviceAttachment.attachmentId}"
+											target="_blank"
+											title="Click to Download"
+										>
+											<span class="monospace">
+												{emptyIfNull(deviceAttachment.fileName)}
+											</span>
+										</a>
+									{:else}
 										<span class="monospace">
 											{emptyIfNull(deviceAttachment.fileName)}
 										</span>
-									</a>
-								{:else}
-									<span class="monospace">
-										{emptyIfNull(deviceAttachment.fileName)}
-									</span>
-								{/if}
-							</td>
-							<td>
-								{#if viewMode}
-									{emptyIfNull(deviceAttachment.description)}
-								{:else}
+									{/if}
+								</td>
+								<td>
+									{#if viewMode}
+										{emptyIfNull(deviceAttachment.description)}
+									{:else}
+										<input
+											bind:value={deviceAttachment.description}
+											id="attachment{deviceAttachment.attachmentId}Description"
+											class="detailEntry detailInput"
+											type="text"
+											placeholder="Attachment Description"
+										/>
+									{/if}
+								</td>
+							</tr>
+						{/each}
+						{#if !viewMode}
+							<tr>
+								<td><button on:click={addNewAttachment} class="maxWidth">Add to List</button></td>
+								<td>
 									<input
-										bind:value={deviceAttachment.description}
-										id="attachment{deviceAttachment.attachmentId}Description"
-										class="detailEntry detailInput"
-										type="text"
-										placeholder="Attachment Description"
+										bind:this={newAttachment.fileElement}
+										id="newAttachmentFile"
+										class="detailInput"
+										type="file"
+										placeholder="Attachment File"
+										class:redBorder={newAttachmentIsTooLarge}
+										class:noRedBorder={!newAttachmentIsTooLarge}
+										title={newAttachmentIsTooLarge ? 'This file is too large!' : ''}
+										on:click={clearInputValue}
+										on:change={checkNewAttachmentSize}
 									/>
-								{/if}
-							</td>
-						</tr>
-					{/each}
-					{#if !viewMode}
-						<tr>
-							<td><button on:click={addNewAttachment} class="maxWidth">Add to List</button></td>
-							<td>
-								<input
-									bind:this={newAttachment.fileElement}
-									id="newAttachmentFile"
-									class="detailInput"
-									type="file"
-									placeholder="Attachment File"
-									class:redBorder={newAttachmentIsTooLarge}
-									class:noRedBorder={!newAttachmentIsTooLarge}
-									title={newAttachmentIsTooLarge ? 'This file is too large!' : ''}
-									on:click={clearInputValue}
-									on:change={checkNewAttachmentSize}
-								/>
-							</td>
-							<td>
-								<input
-									bind:value={newAttachment.description}
-									id="newAttachmentDescription"
-									class="detailInput"
-									type="text"
-									placeholder="Description"
-								/>
-							</td>
-						</tr>
-					{/if}
-				</table>
-			</div>
+								</td>
+								<td>
+									<input
+										bind:value={newAttachment.description}
+										id="newAttachmentDescription"
+										class="detailInput"
+										type="text"
+										placeholder="Description"
+									/>
+								</td>
+							</tr>
+						{/if}
+					</table>
+				</div>
+			{/if}
 			{#if !viewMode}
 				<br />
 				<input type="submit" value={deviceId ? 'Update' : 'Add'} />
+			{/if}
+			{#if deviceId}
+				<svelte:component
+					this={deviceChanges}
+					changeList={deviceData.changes}
+					{deviceId}
+					{locationsMap}
+					{columnDefinitionsMap}
+				/>
 			{/if}
 		</form>
 	{:else}
@@ -510,10 +539,10 @@
 		.detailInput {
 			width: 15em;
 		}
-	}
 
-	h3 {
-		margin: 1em 0 0.2em;
+		h3 {
+			margin: 1em 0 0.2em;
+		}
 	}
 
 	td {
