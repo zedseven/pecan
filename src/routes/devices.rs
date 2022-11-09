@@ -366,7 +366,9 @@ pub async fn search_devices(
 					SELECT
 						dc.timestamp
 					FROM device_changes AS dc
-					WHERE dc.device_key_info_id = dki.id
+					WHERE
+						dc.device_key_info_id = dki.id AND
+						dc.done_automatically = 0
 					ORDER BY dc.timestamp DESC
 					LIMIT 1
 				) AS last_updated

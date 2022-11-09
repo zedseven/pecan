@@ -22,10 +22,17 @@
 				<td class="changeHeader">
 					{#if changeEntry.user != null}
 						{changeEntry.user}
+					{:else if changeEntry.doneAutomatically}
+						<span
+							class="italicised noSelect"
+							title="This change was made automatically by the system."
+						>
+							&lt;{appName}&gt;
+						</span>
 					{:else}
 						<span
 							class="italicised noSelect"
-							title="This is likely because the change was made before change tracking was added to {appName}."
+							title="This change was likely made before change tracking was added to {appName}."
 						>
 							&lt;Unknown&gt;
 						</span>

@@ -199,6 +199,7 @@ pub struct DeviceChange<'a> {
 	pub id:                 i32,
 	pub device_key_info_id: i32,
 	pub timestamp:          NaiveDateTime,
+	pub done_automatically: bool,
 	pub user_id:            Option<i32>,
 	pub change:             Cow<'a, str>,
 }
@@ -207,6 +208,7 @@ pub struct DeviceChange<'a> {
 pub struct DeviceChangeNew<'a> {
 	pub device_key_info_id: i32,
 	pub timestamp:          NaiveDateTime,
+	pub done_automatically: bool,
 	pub user_id:            i32,
 	pub change:             Cow<'a, str>,
 }
@@ -379,6 +381,7 @@ select_def_fn! {
 		(device_changes::id),
 		(device_changes::device_key_info_id),
 		(device_changes::timestamp),
+		(device_changes::done_automatically),
 		(device_changes::user_id),
 		(user_info::display_name.nullable(), Nullable<user_info::display_name>),
 		(device_changes::change),
@@ -391,6 +394,7 @@ pub struct DeviceChangeDisplay<'a> {
 	pub id:                 i32,
 	pub device_key_info_id: i32,
 	pub timestamp:          NaiveDateTime,
+	pub done_automatically: bool,
 	pub user_id:            Option<i32>,
 	pub user:               Option<Cow<'a, str>>,
 	pub change:             Cow<'a, str>,

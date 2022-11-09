@@ -125,6 +125,7 @@
 
 				deviceData.changes.push({
 					timestamp: deviceChange.timestamp,
+					doneAutomatically: deviceChange.doneAutomatically,
 					user: deviceChange.user,
 					change: change,
 				});
@@ -435,7 +436,9 @@
 							<tr>
 								{#if deviceComponent.componentId}
 									<td>
-										<span class="monospace">{deviceId}-{deviceComponent.componentId}</span>:
+										<span class="monospace">{deviceId}-{deviceComponent.componentId}</span><span
+											class="noSelect">:</span
+										>
 									</td>
 								{:else}
 									<td>
@@ -482,7 +485,9 @@
 							<tr>
 								{#if deviceAttachment.attachmentId}
 									<td>
-										<span class="monospace">{deviceId}-{deviceAttachment.attachmentId}</span>:
+										<span class="monospace">{deviceId}-{deviceAttachment.attachmentId}</span><span
+											class="noSelect">:</span
+										>
 									</td>
 								{:else}
 									<td>

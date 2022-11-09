@@ -133,6 +133,7 @@ pub fn log_change(
 		.values(DeviceChangeNew {
 			device_key_info_id: device_id,
 			timestamp:          Utc::now().naive_utc(),
+			done_automatically: false,
 			user_id:            user_id_value,
 			change:             Cow::from(serialised_diff),
 		})
