@@ -18,7 +18,10 @@
 	// Check if the newly-typed value exists in the database, and tell the user if it does
 	const checkIfDeviceExists = async (device: string) => {
 		// Validate and prepare the data
-		if (device == null || device.trim().length <= 0) return;
+		if (device == null || device.trim().length <= 0) {
+			deviceNavigatorValueExists = true; // Set to true so it can be cleared
+			return;
+		}
 
 		device = device.trim();
 
