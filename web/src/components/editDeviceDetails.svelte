@@ -36,6 +36,7 @@
 		fileElement: null,
 		description: '',
 	};
+	let deviceDataEmptyFlags = {};
 	let deviceDataDuplicateFlags = {};
 	let newAttachmentIsTooLarge = false;
 	let locationsMap = {};
@@ -68,6 +69,7 @@
 					dataValue: columnDefinition[0].defaultValue,
 				};
 
+				deviceDataEmptyFlags[columnDefinition[0].id] = false;
 				deviceDataDuplicateFlags[columnDefinition[0].id] = false;
 
 				columnDefinitionsMap[columnDefinition[0].id] = columnDefinition;
@@ -153,6 +155,11 @@
 			return;
 		}
 		for (const columnDefinition of definitions.columnDefinitions) {
+			ensureValueIsNotEmpty(columnDefinition[0].id, columnDefinition[0].notNull);
+			if (deviceDataEmptyFlags[columnDefinition[0].id]) {
+				alert("At least one of the fields you've tried to submit is empty, and must have a value.");
+				return;
+			}
 			if (deviceDataDuplicateFlags[columnDefinition[0].id]) {
 				alert("At least one of the things you've entered is a duplicate, and must be unique.");
 				return;
@@ -248,6 +255,15 @@
 
 	const clearInputValue = (event) => {
 		event.target.value = null;
+	};
+
+	// Check if the newly-changed value is empty, and show an error if it does
+	const ensureValueIsNotEmpty = (columnId, check) => {
+		if (!check) return;
+
+		deviceDataEmptyFlags[columnId] =
+			deviceData.columnData[columnId].dataValue == null ||
+			deviceData.columnData[columnId].dataValue.trim().length <= 0;
 	};
 
 	// Check if the newly-typed value exists in the database, and tell the user if it does
@@ -356,6 +372,14 @@
 									id="column{columnDefinition[0].id}"
 									class="detailEntry detailInput"
 									required={columnDefinition[0].notNull}
+									class:redBorder={deviceDataEmptyFlags[columnDefinition[0].id]}
+									title={deviceDataEmptyFlags[columnDefinition[0].id]
+										? 'This value cannot be empty!'
+										: ''}
+									on:change={ensureValueIsNotEmpty(
+										columnDefinition[0].id,
+										columnDefinition[0].notNull,
+									)}
 								>
 									<option value={null} disabled={true}>
 										-- {columnDefinition[0].name} --
@@ -386,14 +410,17 @@
 									required={columnDefinition[0].notNull}
 									list="column{columnDefinition[0].id}List"
 									placeholder={columnDefinition[0].name}
-									class:redBorder={deviceDataDuplicateFlags[columnDefinition[0].id]}
-									title={deviceDataDuplicateFlags[columnDefinition[0].id]
+									class:redBorder={deviceDataEmptyFlags[columnDefinition[0].id] ||
+										deviceDataDuplicateFlags[columnDefinition[0].id]}
+									title={deviceDataEmptyFlags[columnDefinition[0].id]
+										? 'This value cannot be empty!'
+										: deviceDataDuplicateFlags[columnDefinition[0].id]
 										? 'This value already exists!'
 										: ''}
-									on:change={ensureValueIsUnique(
-										columnDefinition[0].id,
-										columnDefinition[0].uniqueValues,
-									)}
+									on:change={() => {
+										ensureValueIsNotEmpty(columnDefinition[0].id, columnDefinition[0].notNull);
+										ensureValueIsUnique(columnDefinition[0].id, columnDefinition[0].uniqueValues);
+									}}
 								/>
 							{/if}
 						</td>
