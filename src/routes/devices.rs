@@ -57,6 +57,7 @@ impl Routable for DevicesApi {
 			create_device,
 			update_device,
 			get_attachment,
+			get_device_exists,
 			get_data_value_exists
 		]
 	};
@@ -824,6 +825,25 @@ pub async fn get_attachment(
 			.with_context("unable to load a device attachment")?
 			.map(|data| FileFromMemory::new(data.file_name.as_ref(), data.file_data))
 			.ok_or_else(|| Error::User(UserError::NotFound("Attachment not found.")))
+	})
+	.await
+}
+
+#[post("/deviceExists/<device>")]
+pub async fn get_device_exists(
+	_user: &AuthedUser,
+	conn: DbConn,
+	device: String,
+) -> Result<JsonValue, Error> {
+	// Uses
+	use schema::device_key_info::dsl::*;
+
+	conn.run(move |c| {
+		let result = select(exists(device_key_info.filter(device_id.eq(device))))
+			.get_result::<bool>(c)
+			.with_context("unable to query the database for device existence")?;
+
+		Ok(json!({ "exists": result }))
 	})
 	.await
 }

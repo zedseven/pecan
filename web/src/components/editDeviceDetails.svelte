@@ -259,7 +259,7 @@
 	};
 
 	// Check if the newly-changed value is empty, and show an error if it does
-	const ensureValueIsNotEmpty = (columnId, check) => {
+	const ensureValueIsNotEmpty = (columnId: number, check: boolean) => {
 		if (!check) return;
 
 		deviceDataEmptyFlags[columnId] =
@@ -268,7 +268,7 @@
 	};
 
 	// Check if the newly-typed value exists in the database, and tell the user if it does
-	const ensureValueIsUnique = async (columnId, check) => {
+	const ensureValueIsUnique = async (columnId: number, check: boolean) => {
 		if (!check) return;
 
 		// Check with the server - this feels gross, but it shouldn't actually be that bad
@@ -597,14 +597,5 @@
 
 	td {
 		padding: 1px 4px;
-	}
-
-	.redBorder {
-		border: 2px solid red;
-		border-radius: 3px;
-	}
-	.noRedBorder {
-		border: 2px solid transparent;
-		border-radius: 3px;
 	}
 </style>

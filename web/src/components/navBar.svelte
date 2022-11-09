@@ -2,6 +2,7 @@
 	// Imports
 	import { appNameLowercase, buildVersion, buildDate } from '../constants';
 	import globalStyle from './globalStyle.svelte';
+	import { postData } from '../util';
 
 	// Set the logo filetype based on SVG support
 	let logoFileName = document.implementation.hasFeature(
@@ -10,6 +11,40 @@
 	)
 		? 'favicon.svg' // SVGs scale infinitely so it's not a separate file
 		: 'favicon-large.png';
+
+	let deviceNavigatorValue = '';
+	let deviceNavigatorValueExists = true; // Default to true so it's not always red
+
+	// Check if the newly-typed value exists in the database, and tell the user if it does
+	const checkIfDeviceExists = async (device: string) => {
+		// Validate and prepare the data
+		if (device == null || device.trim().length <= 0) return;
+
+		device = device.trim();
+
+		if (!/^\d+$/.test(device)) {
+			deviceNavigatorValueExists = false;
+			return;
+		}
+
+		// Check with the server - this feels gross, but it shouldn't actually be that bad
+		const valueExistsUrl = '/api/devices/deviceExists/';
+		let existsResult = await postData(valueExistsUrl + device, {});
+
+		// Exit if there was an error
+		if (!existsResult.ok) {
+			console.log(existsResult.error);
+			return;
+		}
+
+		console.log(existsResult);
+
+		deviceNavigatorValueExists = existsResult.value.exists;
+
+		if (deviceNavigatorValueExists) {
+			window.location = '/edit/' + device;
+		}
+	};
 </script>
 
 <svelte:head>
@@ -33,6 +68,15 @@
 			emptyValueLabel="-- Your Location --"
 		/>-->
 		<p class="headerInfo" title={buildDate}>{buildVersion}</p>
+		<input
+			bind:value={deviceNavigatorValue}
+			id="deviceNavigator"
+			type="text"
+			placeholder="Go to device ID directly..."
+			class:redBorder={!deviceNavigatorValueExists}
+			title={deviceNavigatorValueExists ? '' : 'This device ID does not exist!'}
+			on:change={checkIfDeviceExists(deviceNavigatorValue)}
+		/>
 	</div>
 </header>
 

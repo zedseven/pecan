@@ -91,6 +91,15 @@
 		background-color: #dddddd;
 	}
 
+	.redBorder {
+		border: 2px solid red;
+		border-radius: 3px;
+	}
+	.noRedBorder {
+		border: 2px solid transparent;
+		border-radius: 3px;
+	}
+
 	@media print {
 		body,
 		#content {
