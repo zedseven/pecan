@@ -56,6 +56,10 @@ fn main() {
 		.naive_utc()
 		.format("%Y-%m-%d %H:%M:%S UTC")
 		.to_string();
+	let commit_hash = get_git_commit_hash();
+	let commit_hash_short = commit_hash
+		.get(..COMMIT_HASH_LENGTH)
+		.expect("unable to slice the commit hash");
 
 	// Run the build command
 	let svelte_output = new_command("npm")
@@ -65,6 +69,7 @@ fn main() {
 		.current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/web"))
 		.env("BUILD_MODE", build_mode)
 		.env("BUILD_VERSION", build_version)
+		.env("BUILD_COMMIT", commit_hash_short)
 		.env("BUILD_DATE", build_date)
 		.output()
 		.expect("failed to execute npm");
@@ -81,17 +86,9 @@ fn main() {
 	assert!(svelte_output.status.success());
 
 	// Output the version string for this build
-	let commit_hash = get_git_commit_hash();
 	write_to_file(
 		VERSION_FILE,
-		format!(
-			"{}-{}",
-			build_version,
-			commit_hash
-				.get(..COMMIT_HASH_LENGTH)
-				.expect("unable to slice the commit hash")
-		)
-		.as_str(),
+		format!("{build_version}-{commit_hash_short}").as_str(),
 	);
 }
 

@@ -1,6 +1,6 @@
 <script lang="ts">
 	// Imports
-	import { appNameLowercase, buildVersion, buildDate } from '../constants';
+	import { appNameLowercase, buildVersion, buildCommit, buildDate } from '../constants';
 	import globalStyle from './globalStyle.svelte';
 	import { postData } from '../util';
 
@@ -67,7 +67,9 @@
 			id="locationSelector"
 			emptyValueLabel="-- Your Location --"
 		/>-->
-		<p class="headerInfo" title={buildDate}>{buildVersion}</p>
+		<p class="headerInfo" title={'Revision ' + buildCommit + ', built on ' + buildDate}>
+			{buildVersion}
+		</p>
 		<input
 			bind:value={deviceNavigatorValue}
 			id="deviceNavigator"

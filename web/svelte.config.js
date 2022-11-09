@@ -5,6 +5,7 @@ import preprocess from 'svelte-preprocess';
 // Constants
 const buildMode = process.env.BUILD_MODE || 'development';
 const buildVersion = process.env.BUILD_VERSION || 'unknown';
+const buildCommit = process.env.BUILD_COMMIT || 'unknown';
 const buildDate = process.env.BUILD_DATE || 'unknown';
 
 // Exports
@@ -24,6 +25,7 @@ const config = {
 			},
 			define: {
 				__BUILD_VERSION__: buildVersion,
+				__BUILD_COMMIT__: buildCommit,
 				__BUILD_DATE__: buildDate,
 			},
 			mode: buildMode, // https://github.com/sveltejs/kit/issues/1258#issuecomment-874482104
