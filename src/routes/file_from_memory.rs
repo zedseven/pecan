@@ -53,7 +53,7 @@ impl<'r> Responder<'r, 'static> for FileFromMemory {
 			CONTENT_DISPOSITION.as_str(),
 			content_disposition,
 		));
-		
+
 		Ok(response)
 	}
 }
