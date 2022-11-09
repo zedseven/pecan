@@ -141,7 +141,8 @@ pub async fn get_definitions(
 				column_possible_values
 					.on(default_value_id.eq(schema::column_possible_values::dsl::id.nullable())),
 			)
-			.order_by(schema::column_definitions::dsl::id)
+			.order_by(ordering_key)
+			.then_order_by(schema::column_definitions::dsl::id)
 			.select(COLUMN_DEFINITION())
 			.load::<ColumnDefinitionSelected<'_>>(c)
 			.with_context("unable to load the column definitions")?;
@@ -212,9 +213,11 @@ pub fn load_device_info<'a, 'b>(
 ) -> Result<CompleteDeviceInfo<'b>, Error> {
 	// Uses
 	use schema::{
+		column_definitions::dsl::*,
 		device_attachments::dsl::*,
 		device_changes::dsl::*,
 		device_components::dsl::*,
+		device_data::dsl::*,
 		device_key_info::dsl::*,
 		locations::dsl::*,
 		user_info::dsl::*,
@@ -228,7 +231,7 @@ pub fn load_device_info<'a, 'b>(
 			schema::device_key_info::dsl::id,
 			device_id,
 			location_id,
-			name,
+			schema::locations::dsl::name,
 			device_changes
 				.select(timestamp)
 				.filter(
@@ -249,6 +252,10 @@ pub fn load_device_info<'a, 'b>(
 	let device_key_info_result = device_key_info_result.unwrap();
 
 	let device_data_results = DeviceData::belonging_to(&device_key_info_result)
+		.inner_join(column_definitions)
+		.order_by(ordering_key)
+		.then_order_by(column_definition_id)
+		.select(DEVICE_DATA)
 		.get_results::<DeviceData<'_>>(conn)
 		.with_context("unable to load the device data")?;
 
@@ -284,7 +291,7 @@ fn perform_search(
 	conn: &mut SqliteConnection,
 	device_key_info_query: BoxedSqlQuery<'_, Sqlite, SqlQuery>,
 ) -> Result<JsonValue, Error> {
-	use schema::device_data::dsl::*;
+	use schema::{column_definitions::dsl::*, device_data::dsl::*};
 
 	let device_key_info_results = device_key_info_query
 		.load::<DeviceInfoByName<'_>>(conn)
@@ -296,7 +303,10 @@ fn perform_search(
 
 	// Collect the device data
 	let device_data_results = DeviceData::belonging_to(&device_key_info_results)
-		.order_by(column_definition_id) // TODO: This will need to change when column ordering is added
+		.inner_join(column_definitions)
+		.order_by(ordering_key)
+		.then_order_by(column_definition_id)
+		.select(DEVICE_DATA)
 		.load::<DeviceData<'_>>(conn)
 		.with_context("unable to load the device data")?
 		.grouped_by(&device_key_info_results);

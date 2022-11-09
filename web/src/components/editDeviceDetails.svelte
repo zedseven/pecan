@@ -70,7 +70,7 @@
 
 				deviceDataDuplicateFlags[columnDefinition[0].id] = false;
 
-				columnDefinitionsMap[columnDefinition[0].id] = columnDefinition[0].name;
+				columnDefinitionsMap[columnDefinition[0].id] = columnDefinition;
 			}
 
 			// Parse the device info if there's a device ID
@@ -102,13 +102,31 @@
 				});
 			}
 			for (const deviceChange of deviceResult.value.deviceChanges) {
+				let change = JSON.parse(deviceChange.change);
+				// Sort the device data changes based on the column definition ordering
+				if (change.deviceData != null && change.deviceData.length > 0) {
+					change.deviceData.sort((a, b) => {
+						// Get the column definitions for both items
+						const columnDefA = columnDefinitionsMap[a.columnDefinitionId];
+						const columnDefB = columnDefinitionsMap[b.columnDefinitionId];
+
+						// Order by the ordering key
+						const orderingKeyDifference = columnDefA[0].orderingKey - columnDefB[0].orderingKey;
+						if (orderingKeyDifference != 0) {
+							return orderingKeyDifference;
+						}
+
+						// Then by the column definition ID (for consistency)
+						return columnDefA[0].id - columnDefB[0].id;
+					});
+				}
+
 				deviceData.changes.push({
 					timestamp: deviceChange.timestamp,
 					user: deviceChange.user,
-					change: JSON.parse(deviceChange.change),
+					change: change,
 				});
 			}
-			console.log(deviceData.changes);
 
 			return Ok({});
 		})

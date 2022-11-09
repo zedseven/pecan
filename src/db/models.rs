@@ -54,6 +54,7 @@ pub struct TokenNew<'a> {
 pub struct ColumnDefinition<'a> {
 	pub id:                          i32,
 	pub name:                        Cow<'a, str>,
+	pub ordering_key:                Option<i32>,
 	pub not_null:                    bool,
 	pub unique_values:               bool,
 	pub show_in_main_page:           bool,
@@ -65,6 +66,7 @@ pub struct ColumnDefinition<'a> {
 #[diesel(table_name = column_definitions)]
 pub struct ColumnDefinitionNew<'a> {
 	pub name:                        Cow<'a, str>,
+	pub ordering_key:                Option<i32>,
 	pub not_null:                    bool,
 	pub unique_values:               bool,
 	pub show_in_main_page:           bool,
@@ -276,6 +278,15 @@ select_def_const! {
 }
 
 select_def_const! {
+	DEVICE_DATA: DeviceDataSelect = (
+		device_data::id,
+		device_data::device_key_info_id,
+		device_data::column_definition_id,
+		device_data::data_value,
+	)
+}
+
+select_def_const! {
 	DEVICE_ATTACHMENT_METADATA: DeviceAttachmentMetadataSelect = (
 		device_attachments::id,
 		device_attachments::device_key_info_id,
@@ -337,6 +348,7 @@ select_def_fn! {
 	COLUMN_DEFINITION: ColumnDefinitionSelect = (
 		(column_definitions::id),
 		(column_definitions::name),
+		(column_definitions::ordering_key),
 		(column_definitions::not_null),
 		(column_definitions::unique_values),
 		(column_definitions::show_in_main_page),
@@ -352,6 +364,7 @@ select_def_fn! {
 pub struct ColumnDefinitionSelected<'a> {
 	pub id:                          i32,
 	pub name:                        Cow<'a, str>,
+	pub ordering_key:                Option<i32>,
 	pub not_null:                    bool,
 	pub unique_values:               bool,
 	pub show_in_main_page:           bool,

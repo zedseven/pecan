@@ -55,7 +55,7 @@
 							{#each changeEntry.change.deviceData as dataChange}
 								<tr>
 									<td class="dataHeader noSelect">
-										{emptyIfNull(columnDefinitionsMap[dataChange.columnDefinitionId])}:
+										{emptyIfNull(columnDefinitionsMap[dataChange.columnDefinitionId][0].name)}:
 									</td>
 									<td>{dataChange.dataValue}</td>
 								</tr>
