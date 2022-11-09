@@ -479,7 +479,7 @@
 			{/if}
 			{#if !viewMode || deviceData.attachments.length > 0}
 				<div id="attachmentDetails">
-					<h3>Attachments</h3>
+					<h3>File Attachments</h3>
 					<table>
 						{#each deviceData.attachments as deviceAttachment}
 							<tr>
