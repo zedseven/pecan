@@ -1,6 +1,6 @@
+// Uses
 use std::fmt::Debug;
 
-// Uses
 use diesel::{sql_query, RunQueryDsl, SqliteConnection};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use rocket::{Build, Rocket};
