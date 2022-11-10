@@ -308,10 +308,19 @@
 
 	const fileToBase64 = (file) =>
 		new Promise((resolve, reject) => {
+			if (file.size <= 0) {
+				// When given an empty file, Chrome simply returns a value of `data:`
+				// Firefox returns a proper value with a mime type: `data:text/plain;base64,`
+				console.log('Attachment file is empty, so nothing will be read from disk.');
+				resolve('');
+				return;
+			}
+
 			const reader = new FileReader();
 			reader.readAsDataURL(file);
 			reader.onload = () => {
 				// Remove the data URI beginning (`data:mime;base64,`)
+				// console.log(reader.result);
 				let resultParts = reader.result.split(',');
 				if (resultParts.length == 2) {
 					resolve(resultParts[1]);
