@@ -607,4 +607,8 @@
 	td {
 		padding: 1px 4px;
 	}
+
+	input[type='file'] {
+		min-width: 100%;
+	}
 </style>
