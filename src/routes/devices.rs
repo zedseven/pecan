@@ -1,7 +1,7 @@
 // Uses
 use std::borrow::Cow;
 
-use base64::{decode_config as base64_decode, STANDARD as BASE64_STANDARD};
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
 use diesel::{
 	dsl::exists,
 	insert_into,
@@ -696,10 +696,10 @@ async fn upsert_device(
 							.with_context("unable to generate a new attachment ID")?;
 
 						// Decode the Base64-encoded file data
-						let binary_file_data = base64_decode(provided_file_data, BASE64_STANDARD)
-							.map_err(|_| {
-							Error::User(UserError::BadRequest("Invalid file data."))
-						})?;
+						let binary_file_data =
+							BASE64_STANDARD.decode(provided_file_data).map_err(|_| {
+								Error::User(UserError::BadRequest("Invalid file data."))
+							})?;
 
 						// Ensure the file size is below the configured limit
 						if binary_file_data.len() as u64 > max_attachment_size.as_u64() {

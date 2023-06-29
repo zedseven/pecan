@@ -13,18 +13,18 @@ codegen-units = 1
 lto = true
 
 [dependencies]
-base64 = "0.13"
+base64 = "0.21"
 chrono = { version = "0.4", features = ["serde"] }
-diesel = { version = "2.0.0-rc.0", features = ["sqlite", "r2d2", "chrono"] }
-diesel_migrations = "2.0.0-rc.0"
-ldap3 = { version = "0.10", default-features = false, features = ["tls-rustls"] }
+diesel = { version = "2.1", features = ["sqlite", "r2d2", "chrono"] }
+diesel_migrations = "2.1"
+ldap3 = { version = "0.11", default-features = false, features = ["tls-rustls"] }
 rand = "0.8"
-rocket = { git = "https://github.com/zedseven/Rocket", branch = "v0.5-rc-6778089-diesel-v2.0.0-rc.0", features = ["tls", "json", "secrets"] }
-rocket_sync_db_pools = { git = "https://github.com/zedseven/Rocket", branch = "v0.5-rc-6778089-diesel-v2.0.0-rc.0", features = ["diesel_sqlite_pool"] }
+rocket = { git = "https://github.com/zedseven/Rocket", branch = "v0.5-rc-91f6288e-diesel-v2.1", features = ["tls", "json", "secrets"] }
+rocket_sync_db_pools = { git = "https://github.com/zedseven/Rocket", branch = "v0.5-rc-91f6288e-diesel-v2.1", features = ["diesel_sqlite_pool"] }
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
-serde_with = "2.0"
+serde_with = "3.0"
 thiserror = "1.0"
 
 [target.'cfg(windows)'.dependencies]
