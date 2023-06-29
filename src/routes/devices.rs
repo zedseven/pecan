@@ -208,10 +208,10 @@ pub type CompleteDeviceInfo<'a> = (
 	Vec<DeviceChangeDisplay<'a>>,
 );
 /// Fetches a device by ID.
-pub fn load_device_info<'a, 'b>(
-	conn: &'a mut SqliteConnection,
+pub fn load_device_info<'a>(
+	conn: &mut SqliteConnection,
 	device: &str,
-) -> Result<CompleteDeviceInfo<'b>, Error> {
+) -> Result<CompleteDeviceInfo<'a>, Error> {
 	// Uses
 	use schema::{
 		column_definitions::dsl::*,
@@ -444,9 +444,7 @@ pub async fn checkout_device(
 			.get_result::<String>(c)
 			.optional()
 			.with_context("unable to query the database for location existence")?;
-		let location_name = if let Some(location_name_value) = location_name {
-			location_name_value
-		} else {
+		let Some(location_name) = location_name else {
 			return Err(UserError::BadRequest("Invalid location.").into());
 		};
 
@@ -457,9 +455,7 @@ pub async fn checkout_device(
 				.get_result::<DeviceKeyInfo<'_>>(tc)
 				.optional()
 				.with_context("unable to query the database for device_key_info existence")?;
-			let old_device_key_info = if let Some(old_device_key_info_value) = old_device_key_info {
-				old_device_key_info_value
-			} else {
+			let Some(old_device_key_info) = old_device_key_info else {
 				return Err(UserError::BadRequest("Invalid device ID.").into());
 			};
 
