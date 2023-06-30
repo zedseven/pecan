@@ -23,6 +23,13 @@ fn main() {
 		return;
 	}
 
+	// Tell Cargo to rebuild if any changes occur to Diesel migrations
+	println!(concat!(
+		"cargo:rerun-if-changed=",
+		env!("CARGO_MANIFEST_DIR"),
+		"/migrations"
+	));
+
 	// Tell Cargo to rebuild Svelte if anything changed in its source directory
 	println!(concat!(
 		"cargo:rerun-if-changed=",
@@ -41,7 +48,11 @@ fn main() {
 	));
 
 	// Tell Cargo to re-run this build script if a new commit is made
-	println!("cargo:rerun-if-changed=.git/HEAD");
+	println!(concat!(
+		"cargo:rerun-if-changed=",
+		env!("CARGO_MANIFEST_DIR"),
+		"/.git/HEAD"
+	));
 
 	// Set the build mode for Svelte based on the Rust build mode
 	let build_mode = if cfg!(debug_assertions) {
