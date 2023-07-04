@@ -16,6 +16,7 @@
 		sanitiseObjectMapToArray,
 		emptyIfNull,
 	} from '../util';
+	import multiStageButton from './multiStageButton.svelte';
 
 	// Component Data
 	export let deviceId = null;
@@ -23,6 +24,7 @@
 	export let isLoading = true;
 	let definitions;
 	let deviceData = {
+		deleted: false,
 		locationId: $selectedLocation, // Default to the selected location for ergonomics
 		columnData: {},
 		components: [],
@@ -83,6 +85,7 @@
 			if (!deviceResult.ok) return deviceResult;
 
 			// Set the device data based on what was loaded
+			deviceData.deleted = deviceResult.value.deviceResults[0].deleted;
 			deviceData.locationId = deviceResult.value.deviceResults[0].locationId;
 			for (const deviceColumnData of deviceResult.value.deviceResults[1]) {
 				deviceData.columnData[deviceColumnData.columnDefinitionId] = {
@@ -93,14 +96,16 @@
 			for (const deviceComponent of deviceResult.value.deviceComponents) {
 				deviceData.components.push({
 					componentId: deviceComponent.componentId,
+					deleted: deviceComponent.deleted,
 					componentType: deviceComponent.componentType,
 				});
 			}
 			for (const deviceAttachment of deviceResult.value.deviceAttachments) {
 				deviceData.attachments.push({
 					attachmentId: deviceAttachment.attachmentId,
+					deleted: deviceAttachment.deleted,
 					description: deviceAttachment.description,
-					fileName: deviceAttachment.fileName,
+					fileName: deviceAttachment.fileName, // Not needed for submission, but needed for display
 				});
 			}
 			for (const deviceChange of deviceResult.value.deviceChanges) {
@@ -129,6 +134,11 @@
 					user: deviceChange.user,
 					change: change,
 				});
+			}
+
+			// TODO: Temporary measure to prevent access to deleted devices
+			if (deviceData.deleted) {
+				window.location = '/';
 			}
 
 			return Ok({});
@@ -208,7 +218,10 @@
 		// Add the new data to the list
 		deviceData.components = [
 			...deviceData.components,
-			Object.assign({}, { componentId: null, componentType: newComponent.componentType }),
+			Object.assign(
+				{},
+				{ componentId: null, deleted: false, componentType: newComponent.componentType },
+			),
 		];
 
 		// Clear the inputs
@@ -241,7 +254,6 @@
 			Object.assign(
 				{},
 				{
-					attachmentId: null,
 					description: newAttachment.description,
 					fileName: newAttachment.fileElement.files[0].name,
 					fileData: newFileData,
@@ -444,7 +456,7 @@
 						{#each deviceData.components as deviceComponent}
 							<tr>
 								{#if deviceComponent.componentId}
-									<td>
+									<td class:strikethrough={deviceComponent.deleted}>
 										<span class="monospace">{deviceId}-{deviceComponent.componentId}</span><span
 											class="noSelect">:</span
 										>
@@ -463,10 +475,36 @@
 											id="component{deviceComponent.componentId}Type"
 											class="detailInput"
 											type="text"
+											disabled={deviceComponent.deleted}
 											placeholder="Component Type"
 										/>
 									{/if}
 								</td>
+								{#if !viewMode}
+									<td>
+										{#if deviceComponent.componentId}
+											{#if deviceComponent.deleted}
+												<button
+													on:click={() => (deviceComponent.deleted = false)}
+													class="maxWidth"
+													style="width: 5em;">Undo</button
+												>
+											{:else}
+												<svelte:component
+													this={multiStageButton}
+													id="component{deviceComponent.componentId}DeleteButton"
+													clickedFunction={() => (deviceComponent.deleted = true)}
+													defaultText="Delete"
+													primedText="Sure?"
+													loadingText="Loading"
+													primeTimeout={2000}
+													className="maxWidth"
+													width="5em"
+												/>
+											{/if}
+										{/if}
+									</td>
+								{/if}
 							</tr>
 						{/each}
 						{#if !viewMode}
@@ -481,6 +519,9 @@
 										placeholder="Component Type"
 									/>
 								</td>
+								{#if !viewMode}
+									<td />
+								{/if}
 							</tr>
 						{/if}
 					</table>
@@ -493,7 +534,7 @@
 						{#each deviceData.attachments as deviceAttachment}
 							<tr>
 								{#if deviceAttachment.attachmentId}
-									<td>
+									<td class:strikethrough={deviceAttachment.deleted}>
 										<span class="monospace">{deviceId}-{deviceAttachment.attachmentId}</span><span
 											class="noSelect">:</span
 										>
@@ -503,7 +544,7 @@
 										<span class="italicised noSelect smallerFont">&lt;Not Submitted&gt;</span>
 									</td>
 								{/if}
-								<td>
+								<td class:strikethrough={deviceAttachment.deleted}>
 									{#if viewMode && deviceAttachment.attachmentId}
 										<a
 											href="/api/devices/attachment/{deviceId}/{deviceAttachment.attachmentId}"
@@ -529,10 +570,36 @@
 											id="attachment{deviceAttachment.attachmentId}Description"
 											class="detailEntry detailInput"
 											type="text"
+											disabled={deviceAttachment.deleted}
 											placeholder="Attachment Description"
 										/>
 									{/if}
 								</td>
+								{#if !viewMode}
+									<td>
+										{#if deviceAttachment.attachmentId}
+											{#if deviceAttachment.deleted}
+												<button
+													on:click={() => (deviceAttachment.deleted = false)}
+													class="maxWidth"
+													style="width: 5em;">Undo</button
+												>
+											{:else}
+												<svelte:component
+													this={multiStageButton}
+													id="component{deviceAttachment.attachmentId}DeleteButton"
+													clickedFunction={() => (deviceAttachment.deleted = true)}
+													defaultText="Delete"
+													primedText="Sure?"
+													loadingText="Loading"
+													primeTimeout={2000}
+													className="maxWidth"
+													width="5em"
+												/>
+											{/if}
+										{/if}
+									</td>
+								{/if}
 							</tr>
 						{/each}
 						{#if !viewMode}
@@ -558,9 +625,12 @@
 										id="newAttachmentDescription"
 										class="detailInput"
 										type="text"
-										placeholder="Description"
+										placeholder="Attachment Description"
 									/>
 								</td>
+								{#if !viewMode}
+									<td />
+								{/if}
 							</tr>
 						{/if}
 					</table>

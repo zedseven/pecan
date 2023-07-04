@@ -15,6 +15,7 @@ use super::{
 		DeviceChangeNew,
 		DeviceComponent,
 		DeviceComponentNew,
+		DeviceComponentUpsert,
 		DeviceData,
 		DeviceDataNew,
 		DeviceInfo,
@@ -45,6 +46,7 @@ fn none_if_empty<D: Diff<B, A>, B, A>(diff: D) -> Option<D> {
 	}
 }
 
+// TODO: Revisit the diff calculation for deleted devices
 fn calculate_vec_diff<D, I, B, BI, A, AI, NS, SN>(
 	before: &Vec<B>,
 	get_before_identifier: BI,
@@ -143,10 +145,10 @@ pub fn log_change(
 	Ok(())
 }
 
-/// Represents a set of changes to a given table. (one click of the `Update`
+/// Represents a set of changes to a given device. (one click of the `Update`
 /// button)
 #[skip_serializing_none]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceDiff<'a> {
 	#[serde(default)]
@@ -170,7 +172,7 @@ impl<'a>
 		(
 			DeviceKeyInfoNew<'a>,
 			Vec<DeviceDataNew<'a>>,
-			Vec<DeviceComponentNew<'a>>,
+			Vec<DeviceComponentUpsert<'a>>,
 			Vec<DeviceAttachmentUpsert<'a>>,
 		),
 	> for DeviceDiff<'a>
@@ -185,7 +187,7 @@ impl<'a>
 		after: &(
 			DeviceKeyInfoNew<'a>,
 			Vec<DeviceDataNew<'a>>,
-			Vec<DeviceComponentNew<'a>>,
+			Vec<DeviceComponentUpsert<'a>>,
 			Vec<DeviceAttachmentUpsert<'a>>,
 		),
 	) -> Option<Self> {
@@ -209,7 +211,7 @@ impl<'a>
 	From<&(
 		DeviceKeyInfoNew<'a>,
 		Vec<DeviceDataNew<'a>>,
-		Vec<DeviceComponentNew<'a>>,
+		Vec<DeviceComponentUpsert<'a>>,
 		Vec<DeviceAttachmentUpsert<'a>>,
 	)> for DeviceDiff<'a>
 {
@@ -217,7 +219,7 @@ impl<'a>
 		after: &(
 			DeviceKeyInfoNew<'a>,
 			Vec<DeviceDataNew<'a>>,
-			Vec<DeviceComponentNew<'a>>,
+			Vec<DeviceComponentUpsert<'a>>,
 			Vec<DeviceAttachmentUpsert<'a>>,
 		),
 	) -> Self {
@@ -236,6 +238,7 @@ pub enum DeviceKeyInfoDiff {
 	Add(DeviceKeyInfoDiffData),
 	Edit(DeviceKeyInfoDiffData),
 	Delete,
+	Restore,
 }
 
 #[skip_serializing_none]
@@ -256,7 +259,7 @@ impl Diff<DeviceInfo<'_>, DeviceKeyInfoNew<'_>> for DeviceKeyInfoDiff {
 	fn is_empty(&self) -> bool {
 		match self {
 			Self::Add(diff) | Self::Edit(diff) => diff.location_id.is_none(),
-			Self::Delete => false,
+			Self::Delete | Self::Restore => false,
 		}
 	}
 }
@@ -313,7 +316,7 @@ impl<'a> Diff<DeviceData<'a>, DeviceDataNew<'a>> for DeviceDataColumnDiff<'a> {
 	fn calculate_diff(before: &DeviceData<'a>, after: &DeviceDataNew<'a>) -> Option<Self> {
 		assert_eq!(
 			before.column_definition_id, after.column_definition_id,
-			"column_definition_ids must match"
+			"column_definition_id values must match"
 		);
 
 		none_if_empty(Self {
@@ -341,16 +344,21 @@ impl<'a> From<&DeviceDataNew<'a>> for DeviceDataColumnDiff<'a> {
 #[serde(rename_all = "camelCase")]
 pub struct DeviceComponentsDiff<'a>(Vec<DeviceComponentsComponentDiff<'a>>);
 
-impl<'a> Diff<Vec<DeviceComponent<'a>>, Vec<DeviceComponentNew<'a>>> for DeviceComponentsDiff<'a> {
+impl<'a> Diff<Vec<DeviceComponent<'a>>, Vec<DeviceComponentUpsert<'a>>>
+	for DeviceComponentsDiff<'a>
+{
 	fn calculate_diff(
 		before: &Vec<DeviceComponent<'a>>,
-		after: &Vec<DeviceComponentNew<'a>>,
+		after: &Vec<DeviceComponentUpsert<'a>>,
 	) -> Option<Self> {
 		calculate_vec_diff(
 			before,
 			|before| before.component_id.clone(),
 			after,
-			|after| after.component_id.clone(),
+			|after| match after {
+				DeviceComponentUpsert::NewExisting(DeviceComponentNew { component_id, .. })
+				| DeviceComponentUpsert::Delete(component_id) => component_id.clone(),
+			},
 			|after| Some(DeviceComponentsComponentDiff::from(after)),
 			|before| Some(DeviceComponentsComponentDiff::from(before)),
 		)
@@ -362,8 +370,8 @@ impl<'a> Diff<Vec<DeviceComponent<'a>>, Vec<DeviceComponentNew<'a>>> for DeviceC
 	}
 }
 
-impl<'a> From<&Vec<DeviceComponentNew<'a>>> for DeviceComponentsDiff<'a> {
-	fn from(after: &Vec<DeviceComponentNew<'a>>) -> Self {
+impl<'a> From<&Vec<DeviceComponentUpsert<'a>>> for DeviceComponentsDiff<'a> {
+	fn from(after: &Vec<DeviceComponentUpsert<'a>>) -> Self {
 		Self(
 			after
 				.iter()
@@ -378,45 +386,72 @@ impl<'a> From<&Vec<DeviceComponentNew<'a>>> for DeviceComponentsDiff<'a> {
 pub enum DeviceComponentsComponentDiff<'a> {
 	Add(DeviceComponentsComponentDiffData<'a>),
 	Edit(DeviceComponentsComponentDiffData<'a>),
-	Delete(Cow<'a, str>),
+	#[serde(rename_all = "camelCase")]
+	Delete {
+		component_id: Cow<'a, str>,
+	},
+	#[serde(rename_all = "camelCase")]
+	Restore {
+		component_id: Cow<'a, str>,
+	},
 }
 
-impl<'a> Diff<DeviceComponent<'a>, DeviceComponentNew<'a>> for DeviceComponentsComponentDiff<'a> {
+impl<'a> Diff<DeviceComponent<'a>, DeviceComponentUpsert<'a>>
+	for DeviceComponentsComponentDiff<'a>
+{
 	fn calculate_diff(
 		before: &DeviceComponent<'a>,
-		after: &DeviceComponentNew<'a>,
+		after: &DeviceComponentUpsert<'a>,
 	) -> Option<Self> {
-		assert_eq!(
-			before.component_id, after.component_id,
-			"component_ids must match"
-		);
+		match after {
+			DeviceComponentUpsert::NewExisting(new_component) => {
+				assert_eq!(
+					before.component_id, new_component.component_id,
+					"component_id values must match"
+				);
 
-		none_if_empty(Self::Edit(DeviceComponentsComponentDiffData {
-			component_id:   after.component_id.clone(),
-			component_type: (before.component_type != after.component_type)
-				.then_some(after.component_type.clone()),
-		}))
+				none_if_empty(Self::Edit(DeviceComponentsComponentDiffData {
+					component_id:   new_component.component_id.clone(),
+					component_type: (before.component_type != new_component.component_type)
+						.then_some(new_component.component_type.clone()),
+				}))
+			}
+			DeviceComponentUpsert::Delete(component_id) => Some(Self::Delete {
+				component_id: component_id.clone(),
+			}),
+		}
 	}
 
 	fn is_empty(&self) -> bool {
 		match self {
 			Self::Add(diff) | Self::Edit(diff) => diff.component_type.is_none(),
-			Self::Delete(_) => false,
+			Self::Delete { .. } | Self::Restore { .. } => false,
 		}
 	}
 }
 
 impl<'a> From<&DeviceComponent<'a>> for DeviceComponentsComponentDiff<'a> {
 	fn from(before: &DeviceComponent<'a>) -> Self {
-		Self::Delete(before.component_id.clone())
+		Self::Delete {
+			component_id: before.component_id.clone(),
+		}
 	}
 }
 
-impl<'a> From<&DeviceComponentNew<'a>> for DeviceComponentsComponentDiff<'a> {
-	fn from(after: &DeviceComponentNew<'a>) -> Self {
-		Self::Add(DeviceComponentsComponentDiffData {
-			component_id:   after.component_id.clone(),
-			component_type: Some(after.component_type.clone()),
+impl<'a> From<&DeviceComponentUpsert<'a>> for DeviceComponentsComponentDiff<'a> {
+	fn from(after: &DeviceComponentUpsert<'a>) -> Self {
+		Self::Add(match after {
+			DeviceComponentUpsert::NewExisting(DeviceComponentNew {
+				component_id,
+				component_type,
+				..
+			}) => DeviceComponentsComponentDiffData {
+				component_id:   component_id.clone(),
+				component_type: Some(component_type.clone()),
+			},
+			DeviceComponentUpsert::Delete(_) => {
+				unreachable!("the component should already exist if it's being deleted")
+			}
 		})
 	}
 }
@@ -450,7 +485,8 @@ impl<'a> Diff<Vec<DeviceAttachmentMetadata<'a>>, Vec<DeviceAttachmentUpsert<'a>>
 				| DeviceAttachmentUpsert::Existing(DeviceAttachmentExisting {
 					attachment_id,
 					..
-				}) => attachment_id.clone(),
+				})
+				| DeviceAttachmentUpsert::Delete(attachment_id) => attachment_id.clone(),
 			},
 			|after| Some(DeviceAttachmentsAttachmentDiff::from(after)),
 			|before| Some(DeviceAttachmentsAttachmentDiff::from(before)),
@@ -479,7 +515,14 @@ impl<'a> From<&Vec<DeviceAttachmentUpsert<'a>>> for DeviceAttachmentsDiff<'a> {
 pub enum DeviceAttachmentsAttachmentDiff<'a> {
 	Add(DeviceAttachmentsAttachmentDiffData<'a>),
 	Edit(DeviceAttachmentsAttachmentDiffData<'a>),
-	Delete(Cow<'a, str>),
+	#[serde(rename_all = "camelCase")]
+	Delete {
+		attachment_id: Cow<'a, str>,
+	},
+	#[serde(rename_all = "camelCase")]
+	Restore {
+		attachment_id: Cow<'a, str>,
+	},
 }
 
 impl<'a> Diff<DeviceAttachmentMetadata<'a>, DeviceAttachmentUpsert<'a>>
@@ -501,12 +544,17 @@ impl<'a> Diff<DeviceAttachmentMetadata<'a>, DeviceAttachmentUpsert<'a>>
 				description,
 				..
 			}) => (attachment_id, description, None),
+			DeviceAttachmentUpsert::Delete(attachment_id) => {
+				return Some(Self::Delete {
+					attachment_id: attachment_id.clone(),
+				})
+			}
 		};
 
 		assert_eq!(
 			before.attachment_id.as_ref(),
 			after_attachment_id,
-			"attachment_ids must match"
+			"attachment_id values must match"
 		);
 
 		none_if_empty(Self::Edit(DeviceAttachmentsAttachmentDiffData {
@@ -525,14 +573,16 @@ impl<'a> Diff<DeviceAttachmentMetadata<'a>, DeviceAttachmentUpsert<'a>>
 			Self::Add(diff) | Self::Edit(diff) => {
 				diff.description.is_none() && diff.file_name.is_none()
 			}
-			Self::Delete(_) => false,
+			Self::Delete { .. } | Self::Restore { .. } => false,
 		}
 	}
 }
 
 impl<'a> From<&DeviceAttachmentMetadata<'a>> for DeviceAttachmentsAttachmentDiff<'a> {
 	fn from(before: &DeviceAttachmentMetadata<'a>) -> Self {
-		Self::Delete(before.attachment_id.clone())
+		Self::Delete {
+			attachment_id: before.attachment_id.clone(),
+		}
 	}
 }
 
@@ -549,15 +599,9 @@ impl<'a> From<&DeviceAttachmentUpsert<'a>> for DeviceAttachmentsAttachmentDiff<'
 				description:   Some(description.clone()),
 				file_name:     Some(file_name.clone()),
 			},
-			DeviceAttachmentUpsert::Existing(DeviceAttachmentExisting {
-				attachment_id,
-				description,
-				..
-			}) => DeviceAttachmentsAttachmentDiffData {
-				attachment_id: attachment_id.clone(),
-				description:   Some(description.clone()),
-				file_name:     None,
-			},
+			DeviceAttachmentUpsert::Existing(_) | DeviceAttachmentUpsert::Delete(_) => {
+				unreachable!("the attachment should already exist if it's being updated")
+			}
 		})
 	}
 }

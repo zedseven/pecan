@@ -10,9 +10,10 @@
 <script lang="ts">
 	// Imports
 	import { tick } from 'svelte';
-	import { timeout } from '../util';
+	import { Ok, getData, timeout } from '../util';
 	import { printSettings } from '../stores';
 	import editDeviceDetails from './editDeviceDetails.svelte';
+	import multiStageButton from './multiStageButton.svelte';
 	import { appName } from '../constants';
 
 	// Component Data
@@ -47,6 +48,20 @@
 				newValue = 1;
 			$printSettings.slot = newValue;
 		}
+	};
+
+	// Deletes the device
+	const deleteDevice = function () {
+		const deleteUrl = '/api/devices/delete/';
+		getData(deleteUrl + deviceId).then(async (deleteResult) => {
+			// If there was an error, return it for processing below
+			if (!deleteResult.ok) return deleteResult;
+
+			// Redirect/refresh if successful
+			window.location = '/';
+
+			return Ok({});
+		});
 	};
 
 	// Simply toggles the view mode on and off
@@ -84,6 +99,13 @@
 				{printSettingsVisible ? 'Hide' : 'Show'} Print Settings
 			</button>
 			<button id="printButton" on:click={printLabel}>Print</button>
+			<svelte:component
+				this={multiStageButton}
+				id="deleteButton"
+				clickedFunction={deleteDevice}
+				defaultText="Delete Device"
+				primeTimeout={2000}
+			/>
 			{#if printSettingsVisible}
 				<div id="printSettings">
 					<div id="printHelp" class="smallerFont">

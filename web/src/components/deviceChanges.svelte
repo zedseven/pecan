@@ -9,6 +9,14 @@
 	export let changeList;
 	export let locationsMap;
 	export let columnDefinitionsMap;
+
+	// Map for the display name of each operation
+	let operationsMap = {
+		add: 'Added',
+		edit: 'Updated',
+		delete: 'Deleted',
+		restore: 'Restored',
+	};
 </script>
 
 <div id="deviceChanges">
@@ -41,11 +49,11 @@
 				<td>
 					<table class="subTable">
 						{#if changeEntry.change.deviceKeyInfo != null}
-							{#if changeEntry.change.deviceKeyInfo.operation === 'add'}
-								<tr>
-									<th colspan="2">New Device</th>
-								</tr>
-							{/if}
+							<tr>
+								<th colspan="2">
+									Device {operationsMap[changeEntry.change.deviceKeyInfo.operation]}
+								</th>
+							</tr>
 						{/if}
 						{#if changeEntry.change.deviceKeyInfo != null || changeEntry.change.deviceData != null}
 							<tr><th>Device Info</th><th /></tr>
@@ -77,11 +85,11 @@
 											class="noSelect"
 											>:
 											<span class="italicised">
-												({componentChange.operation === 'add' ? 'Added' : 'Updated'})
+												({operationsMap[componentChange.operation]})
 											</span>
 										</span>
 									</td>
-									<td>{componentChange.componentType}</td>
+									<td>{emptyIfNull(componentChange.componentType)}</td>
 								</tr>
 							{/each}
 						{/if}
@@ -94,7 +102,7 @@
 											class="noSelect"
 											>:
 											<span class="italicised">
-												({attachmentChange.operation === 'add' ? 'Added' : 'Updated'})
+												({operationsMap[attachmentChange.operation]})
 											</span>
 										</span>
 									</td>

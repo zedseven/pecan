@@ -56,6 +56,8 @@ impl Routable for DevicesApi {
 			checkout_device,
 			create_device,
 			update_device,
+			delete_device,
+			restore_device,
 			get_attachment,
 			get_device_exists,
 			get_data_value_exists
@@ -76,6 +78,7 @@ pub struct UpdatedDeviceInfo {
 #[serde(rename_all = "camelCase")]
 pub struct UpdatedDeviceComponent {
 	component_id:   Option<String>,
+	deleted:        bool,
 	component_type: String,
 }
 #[derive(Deserialize)]
@@ -90,6 +93,7 @@ pub enum UpdatedDeviceAttachment {
 	#[serde(rename_all = "camelCase")]
 	Existing {
 		attachment_id: String,
+		deleted:       bool,
 		description:   String,
 	},
 }
@@ -231,6 +235,7 @@ pub fn load_device_info<'a>(
 		.select((
 			schema::device_key_info::dsl::id,
 			device_id,
+			schema::device_key_info::dsl::deleted,
 			location_id,
 			schema::locations::dsl::name,
 			device_changes
@@ -261,11 +266,13 @@ pub fn load_device_info<'a>(
 		.with_context("unable to load the device data")?;
 
 	let device_component_results = DeviceComponent::belonging_to(&device_key_info_result)
+		.filter(schema::device_components::dsl::deleted.eq(false))
 		.order_by(component_type)
 		.get_results::<DeviceComponent<'_>>(conn)
 		.with_context("unable to load the device components")?;
 
 	let device_attachment_results = DeviceAttachmentMetadata::belonging_to(&device_key_info_result)
+		.filter(schema::device_attachments::dsl::deleted.eq(false))
 		.order_by(file_name)
 		.select(DEVICE_ATTACHMENT_METADATA)
 		.get_results::<DeviceAttachmentMetadata<'_>>(conn)
@@ -359,11 +366,12 @@ pub async fn search_devices(
 		// to the query.
 		let mut search_sql = String::from(
 			"SELECT
-			    dki.id,
-			    dki.device_id,
-			    dki.location_id,
-			    l.name AS location,
-			    (
+				dki.id,
+				dki.device_id,
+				dki.deleted,
+				dki.location_id,
+				l.name AS location,
+				(
 					SELECT
 						dc.timestamp
 					FROM device_changes AS dc
@@ -376,16 +384,17 @@ pub async fn search_devices(
 			FROM device_key_info AS dki
 			INNER JOIN locations AS l ON l.id = dki.location_id
 			WHERE
-			    dki.device_id LIKE ?
-			    AND (? IS NULL OR dki.location_id = ?)\n",
+				dki.device_id LIKE ?
+				AND dki.deleted = 0
+				AND (? IS NULL OR dki.location_id = ?)\n",
 		);
 		let mut bind_params = Vec::new();
 		if search_column_data_is_present {
 			search_sql.push_str(
 				"AND ? = (SELECT
-	               COUNT(dd.id)
-	           FROM device_data AS dd
-	           WHERE dd.device_key_info_id = dki.id AND (",
+						COUNT(dd.id)
+					FROM device_data AS dd
+					WHERE dd.device_key_info_id = dki.id AND (",
 			);
 			let mut first_entry = true;
 			for column_query in &search_query.column_data {
@@ -458,6 +467,14 @@ pub async fn checkout_device(
 			let Some(old_device_key_info) = old_device_key_info else {
 				return Err(UserError::BadRequest("Invalid device ID.").into());
 			};
+
+			// Ensure that deleted devices aren't modified
+			if old_device_key_info.deleted {
+				return Err(UserError::BadRequest(
+					"The device has been deleted. It cannot be modified.",
+				)
+				.into());
+			}
 
 			// Update the device entry
 			update(
@@ -591,6 +608,14 @@ async fn upsert_device(
 					device_attachment_results,
 					_,
 				) = load_device_info(tc, prepared_device_id.as_str())?;
+
+				// Ensure that deleted devices aren't modified
+				if device_key_info_result.deleted {
+					return Err(Error::User(UserError::BadRequest(
+						"The device has been deleted. It cannot be modified.",
+					)));
+				}
+
 				Some((
 					device_key_info_result,
 					device_data_results,
@@ -646,7 +671,7 @@ async fn upsert_device(
 			}
 
 			// Upsert the device components
-			let mut insertable_device_components = Vec::new();
+			let mut upsertable_device_components = Vec::new();
 			for component in &device_info.components {
 				// Generate a new component ID if one wasn't provided
 				let prepared_component_id =
@@ -657,29 +682,59 @@ async fn upsert_device(
 							.with_context("unable to generate a new component ID")?
 					};
 
-				insertable_device_components.push(DeviceComponentNew {
-					device_key_info_id: internal_id,
-					component_id:       Cow::from(prepared_component_id),
-					component_type:     Cow::from(component.component_type.as_str()),
+				// Ensure a component can't be deleted if it doesn't even exist
+				// TODO: The fact that this is possible indicates poor design
+				if component.deleted && component.component_id.is_none() {
+					return Err(Error::User(UserError::BadRequest(
+						"The component can't be created and deleted at the same time.",
+					)));
+				}
+
+				upsertable_device_components.push(if component.deleted {
+					DeviceComponentUpsert::Delete(Cow::from(prepared_component_id))
+				} else {
+					DeviceComponentUpsert::NewExisting(DeviceComponentNew {
+						device_key_info_id: internal_id,
+						component_id:       Cow::from(prepared_component_id),
+						component_type:     Cow::from(component.component_type.as_str()),
+					})
 				});
 			}
 
-			for insertable_record in &insertable_device_components {
-				// Upsert the component
-				insert_into(device_components)
-					.values(insertable_record)
-					.on_conflict((
-						schema::device_components::dsl::device_key_info_id,
-						component_id,
-					))
-					.do_update()
-					.set(component_type.eq(excluded(component_type)))
-					.execute(tc)
-					.with_context("unable to upsert into device_components")?;
+			for upsertable_record in &upsertable_device_components {
+				match upsertable_record {
+					DeviceComponentUpsert::NewExisting(new_record) => {
+						// Upsert the component
+						insert_into(device_components)
+							.values(new_record)
+							.on_conflict((
+								schema::device_components::dsl::device_key_info_id,
+								component_id,
+							))
+							.do_update()
+							.set(component_type.eq(excluded(component_type)))
+							.execute(tc)
+							.with_context("unable to upsert into device_components")?;
+					}
+					DeviceComponentUpsert::Delete(provided_component_id) => {
+						// Delete the component
+						update(
+							device_components
+								.filter(
+									schema::device_components::dsl::device_key_info_id
+										.eq(internal_id),
+								)
+								.filter(component_id.eq(provided_component_id.as_ref())),
+						)
+						.set(schema::device_components::dsl::deleted.eq(true))
+						.execute(tc)
+						.with_context("unable to update device_components")?;
+					}
+				}
 			}
 
 			// Update the device attachments
-			let mut insertable_device_attachments = Vec::new();
+			let mut upsertable_device_attachments = Vec::new();
 			for attachment in &device_info.attachments {
 				match attachment {
 					UpdatedDeviceAttachment::New {
@@ -706,7 +761,7 @@ async fn upsert_device(
 
 						let default_file_name =
 							format!("{prepared_device_id}-{new_attachment_id}.bin");
-						insertable_device_attachments.push(DeviceAttachmentUpsert::New(
+						upsertable_device_attachments.push(DeviceAttachmentUpsert::New(
 							DeviceAttachmentNew {
 								device_key_info_id: internal_id,
 								attachment_id:      Cow::from(new_attachment_id),
@@ -722,21 +777,26 @@ async fn upsert_device(
 					}
 					UpdatedDeviceAttachment::Existing {
 						attachment_id: provided_attachment_id,
+						deleted: provided_deleted,
 						description: provided_description,
 					} => {
-						insertable_device_attachments.push(DeviceAttachmentUpsert::Existing(
-							DeviceAttachmentExisting {
+						upsertable_device_attachments.push(if *provided_deleted {
+							DeviceAttachmentUpsert::Delete(Cow::from(
+								provided_attachment_id.as_str(),
+							))
+						} else {
+							DeviceAttachmentUpsert::Existing(DeviceAttachmentExisting {
 								device_key_info_id: internal_id,
 								attachment_id:      Cow::from(provided_attachment_id.as_str()),
 								description:        Cow::from(provided_description.as_str()),
-							},
-						));
+							})
+						});
 					}
 				}
 			}
 
-			for insertable_record in &insertable_device_attachments {
-				match insertable_record {
+			for upsertable_record in &upsertable_device_attachments {
+				match upsertable_record {
 					DeviceAttachmentUpsert::New(new_record) => {
 						// Insert the attachment
 						insert_into(device_attachments)
@@ -762,6 +822,20 @@ async fn upsert_device(
 						.execute(tc)
 						.with_context("unable to update device_attachments")?;
 					}
+					DeviceAttachmentUpsert::Delete(provided_attachment_id) => {
+						// Delete the attachment
+						update(
+							device_attachments
+								.filter(
+									schema::device_attachments::dsl::device_key_info_id
+										.eq(internal_id),
+								)
+								.filter(attachment_id.eq(provided_attachment_id.as_ref())),
+						)
+						.set(schema::device_attachments::dsl::deleted.eq(true))
+						.execute(tc)
+						.with_context("unable to update device_attachments")?;
+					}
 				}
 			}
 
@@ -772,16 +846,16 @@ async fn upsert_device(
 					&(
 						insertable_device_key_info,
 						insertable_device_data,
-						insertable_device_components,
-						insertable_device_attachments,
+						upsertable_device_components,
+						upsertable_device_attachments,
 					),
 				)
 			} else {
 				Some(DeviceDiff::from(&(
 					insertable_device_key_info,
 					insertable_device_data,
-					insertable_device_components,
-					insertable_device_attachments,
+					upsertable_device_components,
+					upsertable_device_attachments,
 				)))
 			};
 
@@ -796,6 +870,79 @@ async fn upsert_device(
 
 		// Return the results
 		Ok(json!({ "deviceId": prepared_device_id }))
+	})
+	.await
+}
+
+/// Deletes a device.
+#[get("/delete/<device>")]
+pub async fn delete_device(
+	user: &AuthedUser,
+	conn: DbConn,
+	device: String,
+) -> Result<Json<()>, Error> {
+	set_device_deletion_status(conn, device, true, user.0.id).await
+}
+
+/// Restores a device.
+#[get("/restore/<device>")]
+pub async fn restore_device(
+	user: &AuthedUser,
+	conn: DbConn,
+	device: String,
+) -> Result<Json<()>, Error> {
+	set_device_deletion_status(conn, device, false, user.0.id).await
+}
+
+/// Deletes or restores a device.
+async fn set_device_deletion_status(
+	conn: DbConn,
+	device: String,
+	new_deletion_status: bool,
+	user_id_value: i32,
+) -> Result<Json<()>, Error> {
+	conn.run(move |c| {
+		// Uses
+		use schema::device_key_info::dsl::*;
+
+		// Begin the transaction
+		c.transaction::<_, Error, _>(|tc| {
+			// Pull the existing values - this is horribly inefficient, but this operation
+			// shouldn't happen often
+			let (device_key_info_result, ..) = load_device_info(tc, device.as_str())?;
+
+			// Ensure that there's something to do
+			if device_key_info_result.deleted == new_deletion_status {
+				return Err(Error::User(UserError::BadRequest(
+					"The device deletion status is already set to the desired value.",
+				)));
+			}
+
+			// Update the device info
+			update(device_key_info.filter(id.eq(device_key_info_result.id)))
+				.set(deleted.eq(new_deletion_status))
+				.execute(tc)
+				.with_context("unable to update device_key_info")?;
+
+			// Generate the diff
+			let change_diff = DeviceDiff {
+				device_key_info: Some(if new_deletion_status {
+					DeviceKeyInfoDiff::Delete
+				} else {
+					DeviceKeyInfoDiff::Restore
+				}),
+				..Default::default()
+			};
+
+			log_change(tc, device_key_info_result.id, user_id_value, &change_diff)
+				.with_context("unable to log device change")?;
+
+			Ok(())
+		})
+		.with_context("unable to update the device entry")?;
+
+		// Return the results
+		Ok(Json(()))
 	})
 	.await
 }

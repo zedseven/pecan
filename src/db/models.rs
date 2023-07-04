@@ -6,7 +6,7 @@ use std::borrow::Cow;
 use chrono::NaiveDateTime;
 use diesel::{
 	dsl::Nullable,
-	sql_types::{Integer, Text, Timestamp},
+	sql_types::{Bool, Integer, Text, Timestamp},
 	NullableExpressionMethods,
 };
 
@@ -108,6 +108,7 @@ pub struct LocationDefinitionNew<'a> {
 pub struct DeviceKeyInfo<'a> {
 	pub id:          i32,
 	pub device_id:   Cow<'a, str>,
+	pub deleted:     bool,
 	pub location_id: i32,
 }
 #[derive(Insertable, Debug, Clone)]
@@ -141,7 +142,13 @@ pub struct DeviceComponent<'a> {
 	pub id:                 i32,
 	pub device_key_info_id: i32,
 	pub component_id:       Cow<'a, str>,
+	pub deleted:            bool,
 	pub component_type:     Cow<'a, str>,
+}
+#[derive(Debug, Clone)]
+pub enum DeviceComponentUpsert<'a> {
+	NewExisting(DeviceComponentNew<'a>),
+	Delete(Cow<'a, str>),
 }
 #[derive(Insertable, Debug, Clone)]
 #[diesel(table_name = device_components)]
@@ -157,6 +164,7 @@ pub struct DeviceAttachment<'a> {
 	pub id:                 i32,
 	pub device_key_info_id: i32,
 	pub attachment_id:      Cow<'a, str>,
+	pub deleted:            bool,
 	pub description:        Cow<'a, str>,
 	pub file_name:          Cow<'a, str>,
 	pub file_data:          Vec<u8>,
@@ -168,6 +176,7 @@ pub struct DeviceAttachmentMetadata<'a> {
 	pub id:                 i32,
 	pub device_key_info_id: i32,
 	pub attachment_id:      Cow<'a, str>,
+	pub deleted:            bool,
 	pub description:        Cow<'a, str>,
 	pub file_name:          Cow<'a, str>,
 }
@@ -175,6 +184,7 @@ pub struct DeviceAttachmentMetadata<'a> {
 pub enum DeviceAttachmentUpsert<'a> {
 	New(DeviceAttachmentNew<'a>),
 	Existing(DeviceAttachmentExisting<'a>),
+	Delete(Cow<'a, str>),
 }
 #[derive(Insertable, Debug, Clone)]
 #[diesel(table_name = device_attachments)]
@@ -293,6 +303,7 @@ select_def_const! {
 		device_attachments::id,
 		device_attachments::device_key_info_id,
 		device_attachments::attachment_id,
+		device_attachments::deleted,
 		device_attachments::description,
 		device_attachments::file_name,
 	)
@@ -302,6 +313,7 @@ select_def_const! {
 		device_attachments::id,
 		device_attachments::device_key_info_id,
 		device_attachments::attachment_id,
+		device_attachments::deleted,
 		device_attachments::description,
 		device_attachments::file_name,
 		device_attachments::file_data,
@@ -314,6 +326,7 @@ select_def_const! {
 pub struct DeviceInfo<'a> {
 	pub id:           i32,
 	pub device_id:    Cow<'a, str>,
+	pub deleted:      bool,
 	pub location_id:  i32,
 	pub location:     Cow<'a, str>,
 	pub last_updated: NaiveDateTime,
@@ -327,6 +340,8 @@ pub struct DeviceInfoByName<'a> {
 	pub id:           i32,
 	#[diesel(sql_type = Text)]
 	pub device_id:    Cow<'a, str>,
+	#[diesel(sql_type = Bool)]
+	pub deleted:      bool,
 	#[diesel(sql_type = Integer)]
 	pub location_id:  i32,
 	#[diesel(sql_type = Text)]
@@ -339,6 +354,7 @@ impl<'a> From<DeviceInfoByName<'a>> for DeviceInfo<'a> {
 		Self {
 			id:           by_name.id,
 			device_id:    by_name.device_id,
+			deleted:      by_name.deleted,
 			location_id:  by_name.location_id,
 			location:     by_name.location,
 			last_updated: by_name.last_updated,

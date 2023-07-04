@@ -14,6 +14,9 @@
 	export let disabledText = 'Disabled';
 	export let isDisabled = false;
 	export let primeTimeout = 5000; // 5 seconds
+	export let id = null;
+	export let className = null;
+	export let width = '9em';
 
 	let clickState = ClickState.NotClicked;
 
@@ -43,17 +46,13 @@
 </script>
 
 {#if isDisabled}
-	<button disabled={true}>{disabledText}</button>
+	<button {id} class={className} disabled={true} style="width: {width};">{disabledText}</button>
 {:else if clickState === ClickState.Loading}
-	<button class="loading">{loadingText}</button>
+	<button {id} class="{className} loading" style="width: {width};">{loadingText}</button>
 {:else if clickState === ClickState.Primed}
-	<button on:click={clicked} class="primed">{primedText}</button>
+	<button on:click={clicked} {id} class="{className} primed" style="width: {width};"
+		>{primedText}</button
+	>
 {:else}
-	<button on:click={clicked}>{defaultText}</button>
+	<button on:click={clicked} {id} class={className} style="width: {width};">{defaultText}</button>
 {/if}
-
-<style lang="scss">
-	button {
-		width: 9em;
-	}
-</style>

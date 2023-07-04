@@ -57,6 +57,9 @@
 	.monospace {
 		font-family: monospace, monospace;
 	}
+	.strikethrough {
+		text-decoration: line-through;
+	}
 	.noSelect,
 	th,
 	label,
