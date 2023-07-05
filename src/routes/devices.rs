@@ -487,12 +487,10 @@ pub async fn checkout_device(
 			// Log the change in the database
 			if old_device_key_info.location_id != checkout_info.location_id {
 				let diff = DeviceDiff {
-					device_key_info:    Some(DeviceKeyInfoDiff::Edit(DeviceKeyInfoDiffData {
+					device_key_info: Some(DeviceKeyInfoDiff::Edit(DeviceKeyInfoDiffData {
 						location_id: Some(checkout_info.location_id),
 					})),
-					device_data:        None,
-					device_components:  None,
-					device_attachments: None,
+					..Default::default()
 				};
 
 				log_change(tc, old_device_key_info.id, user_id_value, &diff)
