@@ -136,11 +136,6 @@
 				});
 			}
 
-			// TODO: Temporary measure to prevent access to deleted devices
-			if (deviceData.deleted) {
-				window.location = '/';
-			}
-
 			return Ok({});
 		})
 		.then((result) => {

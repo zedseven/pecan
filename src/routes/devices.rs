@@ -230,6 +230,7 @@ pub fn load_device_info<'a>(
 
 	// Load from the database
 	let device_key_info_result = device_key_info
+		.filter(schema::device_key_info::dsl::deleted.eq(false))
 		.filter(device_id.eq(device))
 		.inner_join(locations)
 		.select((
@@ -958,6 +959,8 @@ pub async fn get_attachment(
 
 		device_key_info
 			.inner_join(device_attachments)
+			.filter(schema::device_key_info::dsl::deleted.eq(false))
+			.filter(schema::device_attachments::dsl::deleted.eq(false))
 			.filter(device_id.eq(device.as_str()))
 			.filter(attachment_id.eq(attachment.as_str()))
 			.select(DEVICE_ATTACHMENT)
@@ -980,9 +983,13 @@ pub async fn get_device_exists(
 	use schema::device_key_info::dsl::*;
 
 	conn.run(move |c| {
-		let result = select(exists(device_key_info.filter(device_id.eq(device))))
-			.get_result::<bool>(c)
-			.with_context("unable to query the database for device existence")?;
+		let result = select(exists(
+			device_key_info
+				.filter(deleted.eq(false))
+				.filter(device_id.eq(device)),
+		))
+		.get_result::<bool>(c)
+		.with_context("unable to query the database for device existence")?;
 
 		Ok(json!({ "exists": result }))
 	})
