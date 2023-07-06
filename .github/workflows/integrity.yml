@@ -10,7 +10,7 @@ env:
 jobs:
   rustfmt-check:
     name: Rustfmt Check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -35,8 +35,8 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - ubuntu-latest
-          - windows-latest
+          - ubuntu-20.04
+          - windows-2022
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -63,7 +63,7 @@ jobs:
 
   misplaced-use-statements-check:
     name: Misplaced `use` Statements Check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout
         uses: actions/checkout@v2

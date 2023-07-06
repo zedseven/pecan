@@ -14,8 +14,8 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - ubuntu-latest
-          - windows-latest
+          - ubuntu-20.04 # Required because newer versions of Ubuntu build without support for older versions of glibc.
+          - windows-2022
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
